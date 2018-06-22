@@ -6,12 +6,11 @@
 
   <ItemGroup>
     <Compile Include="Data.fs" />
-    <Compile Include="Library.fs" />
+    <Compile Include="CharGen.fs" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="FSharp.Core" Version="4.3.3" />
-    <PackageReference Update="System.ValueTuple" Version="4.5.0" />
+    <ProjectReference Include="..\Froggy\Froggy.fsproj" />
   </ItemGroup>
 
 </Project>
