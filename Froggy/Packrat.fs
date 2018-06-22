@@ -88,3 +88,13 @@ let pack (rule: Rule<'t>) : Input -> ('t * Input) option =
           Some(v, output)
   eval // return eval function
 
+let (|End|NotEnd|) ((ctx, ix): Input) =
+  if ix = ctx.input.Length then End else NotEnd
+let (|Char|_|) c ((ctx, ix): Input) =
+  if ix < ctx.input.Length && ctx.input.[ix] = c then Some((ctx, ix+1)) else None
+
+
+match ParseContext.Init "yess" with
+| Char 'y' (Char 'e' (Char 's' (Char 's' End))) -> "yeppers"
+| Char 'y' (Char 'e' (Char 's' End)) -> "yep"
+| _ -> "nope"
