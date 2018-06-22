@@ -101,6 +101,7 @@ let rec (|Nos|_|) = pack(function Nos(msg1, No(msg2, rest)) -> Some(msg1+msg2, r
 let (|YesNo|_|) = function
   | No(msg2, rest) -> Some(msg2, rest)
   | Yes(msg2, rest) -> Some(msg2, rest)
+  | _ -> None
 let rec (|YesNos|_|) = pack(
   function
   | YesNos(msg1, YesNo(msg2, rest)) -> Some(msg1+msg2, rest)
@@ -112,6 +113,7 @@ let q input =
   |YesNos(msg, End) -> msg
   | _ -> "parse failure"
 
-  q "yes" // I think this proves that there's a bug in pack
+  q "yes" // I think this proves that there's a bug in pack. No, it's just a bug in our grammar. Throws an exception instead of returning None.
   q "yesyesnoyesnoyes"
   q "yesn"
+  q "yesnoyesyesnonoyes"
