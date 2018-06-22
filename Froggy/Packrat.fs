@@ -88,7 +88,7 @@ let pack (rule: Rule<'t>) : Input -> ('t * Input) option =
           Some(v, output)
   eval // return eval function
 
-// Here's a simple grammar which demonstrates that there's a bug in pack. Apparently I didn't grab the most current implementation.
+// Here's a simple grammar which demonstrates usage
 let (|End|_|) ((ctx, ix): Input) =
   if ix = ctx.input.Length then Some() else None
 let (|Char|_|) c ((ctx, ix): Input) =
@@ -106,14 +106,15 @@ let rec (|YesNos|_|) = pack(
   function
   | YesNos(msg1, YesNo(msg2, rest)) -> Some(msg1+msg2, rest)
   | YesNo(msg2, rest) -> Some(msg2, rest)
-  | _ -> None)
+  | _ -> None
+  )
 
 let q input =
   match ParseContext.Init input with
   |YesNos(msg, End) -> msg
   | _ -> "parse failure"
 
-  q "yes" // I think this proves that there's a bug in pack. No, it's just a bug in our grammar. Throws an exception instead of returning None.
-  q "yesyesnoyesnoyes"
-  q "yesn"
-  q "yesnoyesyesnonoyes"
+q "yes"
+q "yesyesnoyesnoyes" // demonstrate recursive, packrat parsing. In this case it just rebuilds the original string but could be a data structure
+q "yesn" // should return "parse failure"
+q "yesnoyesyesnonoyes"
