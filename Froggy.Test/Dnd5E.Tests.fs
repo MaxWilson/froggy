@@ -1,0 +1,63 @@
+﻿module Froggy.Dnd5e.Tests
+
+open Xunit
+
+open Froggy.Packrat
+open Froggy.Dnd5e.CharGen
+
+[<Fact(DisplayName="Usage tests: verify that chargen commands can be parsed correctly")>]
+let UsageTest() =
+  let output = ref ""
+  let mutable i = 11
+  let ctx = StatBank((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
+  let proc cmd = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse |> ctx.Execute
+  proc "name Mengar the Magnificent"
+  Assert.Contains("Name: Mengar the Magnificent", !output)
+  proc "roll"
+  Assert.Contains ("Str 12", !output)
+  Assert.Contains ("Dex 13", !output)
+  Assert.Contains ("Con 14", !output)
+  Assert.Contains ("Int 15", !output)
+  Assert.Contains ("Wis 16", !output)
+  Assert.Contains ("Cha 17", !output)
+  proc "assign 6 5 2 3 1 4"
+  Assert.Contains ("Str 12", !output)
+  Assert.Contains ("Dex 13", !output)
+  Assert.Contains ("Con 16", !output)
+  Assert.Contains ("Int 15", !output)
+  Assert.Contains ("Wis 17", !output)
+  Assert.Contains ("Cha 14", !output)
+
+
+[<Fact(DisplayName="Usage tests: verify corner cases for parse commands")>]
+let CornerCasees() =
+  let output = ref ""
+  let mutable i = 11
+  let ctx = StatBank((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
+  let proc cmd = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse |> ctx.Execute
+  let failproc cmd =
+    let cmd = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse
+    Assert.Equal(Commands.Noop, cmd)
+    cmd |> ctx.Execute
+  Assert.Equal("", !output)
+  proc "new"
+  Assert.Contains("Name: Unnamed", !output)
+  proc "name     Uncanny John, eater of fish  " // deliberate extraneous whitespace and commas
+  Assert.Contains("Name: Uncanny John, eater of fish", !output)
+  proc "namebob" // not a valid name, should change nothing
+  Assert.Contains("Name: Uncanny John, eater of fish", !output)
+  proc "roll"
+  failproc "assign 6 4 2 3 1" // invalid assignment (wrong number of stats) should change nothing except potentially outputting a parse error
+  Assert.Contains ("Str 12", !output)
+  Assert.Contains ("Dex 13", !output)
+  Assert.Contains ("Con 14", !output)
+  Assert.Contains ("Int 15", !output)
+  Assert.Contains ("Wis 16", !output)
+  Assert.Contains ("Cha 17", !output)
+  proc "assign 1 4 4 2 3 5" // ties should be allowed as meaning "don't care", and broken arbitrarily
+  Assert.Contains ("Str 17", !output)
+  Assert.True (output.Value.Contains("Dex 13")||output.Value.Contains("Con 13"))
+  Assert.True (output.Value.Contains("Dex 14")||output.Value.Contains("Con 14"))
+  Assert.Contains ("Int 16", !output)
+  Assert.Contains ("Wis 15", !output)
+  Assert.Contains ("Cha 12", !output)
