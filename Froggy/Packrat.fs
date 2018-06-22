@@ -88,13 +88,30 @@ let pack (rule: Rule<'t>) : Input -> ('t * Input) option =
           Some(v, output)
   eval // return eval function
 
-let (|End|NotEnd|) ((ctx, ix): Input) =
-  if ix = ctx.input.Length then End else NotEnd
+// Here's a simple grammar which demonstrates that there's a bug in pack. Apparently I didn't grab the most current implementation.
+let (|End|_|) ((ctx, ix): Input) =
+  if ix = ctx.input.Length then Some() else None
 let (|Char|_|) c ((ctx, ix): Input) =
   if ix < ctx.input.Length && ctx.input.[ix] = c then Some((ctx, ix+1)) else None
 
+let (|Yes|_|) = (function Char 'y' (Char 'e' (Char 's' out)) -> Some("yes", out) | _ -> None)
+let rec (|Yess|_|) = pack(function Yess(msg1, Yes(msg2, rest)) -> Some(msg1+msg2, rest) | Yes(msg, rest) -> Some(msg, rest) | _ -> None)
+let (|No|_|) = pack(function Char 'n' (Char 'o' out) -> Some("no", out) | _ -> None)
+let rec (|Nos|_|) = pack(function Nos(msg1, No(msg2, rest)) -> Some(msg1+msg2, rest) | No(msg, rest) -> Some(msg, rest) | _ -> None)
+let (|YesNo|_|) = function
+  | No(msg2, rest) -> Some(msg2, rest)
+  | Yes(msg2, rest) -> Some(msg2, rest)
+let rec (|YesNos|_|) = pack(
+  function
+  | YesNos(msg1, YesNo(msg2, rest)) -> Some(msg1+msg2, rest)
+  | YesNo(msg2, rest) -> Some(msg2, rest)
+  | _ -> None)
 
-match ParseContext.Init "yess" with
-| Char 'y' (Char 'e' (Char 's' (Char 's' End))) -> "yeppers"
-| Char 'y' (Char 'e' (Char 's' End)) -> "yep"
-| _ -> "nope"
+let q input =
+  match ParseContext.Init input with
+  |YesNos(msg, End) -> msg
+  | _ -> "parse failure"
+
+  q "yes" // I think this proves that there's a bug in pack
+  q "yesyesnoyesnoyes"
+  q "yesn"
