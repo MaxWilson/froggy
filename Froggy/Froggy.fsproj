@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <Compile Include="Data.fs" />
+    <Compile Include="Packrat.fs" />
     <Compile Include="Library.fs" />
   </ItemGroup>
 
