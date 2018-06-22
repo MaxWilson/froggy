@@ -87,3 +87,4 @@ let pack (rule: Rule<'t>) : Input -> ('t * Input) option =
           ctx.settled := ctx.settled.Value |> Map.add key (Success (box v, outpos)) // remember the success
           Some(v, output)
   eval // return eval function
+

@@ -23,6 +23,9 @@ type Command =
 | Roll of Compound
 | Average of Compound
 
+module Util =
+  let nomatch() = failwith "No match"
+
 #nowarn "40" // recursive object references from memoization
 module Parser =
 
@@ -40,8 +43,7 @@ module Parser =
       let arithmeticOperators = Set<_>['+'; '-']
       let advantageDisadvantage = Set<_>['A'; 'D'; 'a'; 'd']
       let alphanumeric = alpha + numeric
-      let ctx = ParseContext()
-      let memoize = memoize ctx
+      let memoize = fun name x -> x
 
       let (|Next|Empty|) = function
           | (input : string), pos when pos < input.Length -> Next(input.[pos], (input, pos+1))
