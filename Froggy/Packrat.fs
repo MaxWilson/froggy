@@ -114,9 +114,9 @@ let (|Chars|_|) alphabet ((ctx, ix): Input) =
   | endpos when endpos > ix -> Some(ctx.input.Substring(ix, endpos - ix), (ctx, endpos))
   | _ -> None
 
-let (|Word|_|) = function
-  | Chars alphanumeric (v, rest) -> Some(v, rest)
-  | _ -> None
+let (|Word|_|) = (|Chars|_|) alphanumeric
+
+let (|Words|_|) = (|Chars|_|) (alphanumeric |> Set.add ' ')
 
 // Optional whitespace
 let (|OWS|) = (|Chars|_|) whitespace
