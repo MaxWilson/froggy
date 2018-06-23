@@ -1,4 +1,7 @@
-﻿module Froggy.Packrat
+﻿#if INTERACTIVE
+#else
+module Froggy.Packrat
+#endif
 
 (* DEEP MAGIC BEGINS HERE
 The following memo function allows construction of left-recursive grammars using a stateful
@@ -91,30 +94,36 @@ let pack (rule: Rule<'t>) : Input -> ('t * Input) option =
 // Here's a simple grammar which demonstrates usage
 let (|End|_|) ((ctx, ix): Input) =
   if ix = ctx.input.Length then Some() else None
-let (|Char|_|) c ((ctx, ix): Input) =
-  if ix < ctx.input.Length && ctx.input.[ix] = c then Some((ctx, ix+1)) else None
 
-let (|Yes|_|) = (function Char 'y' (Char 'e' (Char 's' out)) -> Some("yes", out) | _ -> None)
-let rec (|Yess|_|) = pack(function Yess(msg1, Yes(msg2, rest)) -> Some(msg1+msg2, rest) | Yes(msg, rest) -> Some(msg, rest) | _ -> None)
-let (|No|_|) = pack(function Char 'n' (Char 'o' out) -> Some("no", out) | _ -> None)
-let rec (|Nos|_|) = pack(function Nos(msg1, No(msg2, rest)) -> Some(msg1+msg2, rest) | No(msg, rest) -> Some(msg, rest) | _ -> None)
+let (|Str|_|) (str: string) ((ctx, ix): Input) =
+  if ix + str.Length <= ctx.input.Length && System.String.Equals(ctx.input.Substring(ix, str.Length), str, System.StringComparison.InvariantCultureIgnoreCase) then Some((ctx, ix+str.Length)) else None
+
+// Optional whitespace
+let (|OWS|) ((ctx, ix): Input) =
+  let rec seek i =
+    if i >= ctx.input.Length || ctx.input.[i] <> ' ' then i
+    else seek (i+1)
+  ctx, (seek ix)
+
 let (|YesNo|_|) = function
-  | No(msg2, rest) -> Some(msg2, rest)
-  | Yes(msg2, rest) -> Some(msg2, rest)
+  | Str "No" rest -> Some(0I, rest)
+  | Str "Yes" rest -> Some(1I, rest)
   | _ -> None
 let rec (|YesNos|_|) = pack(
   function
-  | YesNos(msg1, YesNo(msg2, rest)) -> Some(msg1+msg2, rest)
-  | YesNo(msg2, rest) -> Some(msg2, rest)
+  | YesNos(v1, OWS(YesNo(v2, rest))) -> Some(v1*10I+v2, rest)
+  | YesNo(v, rest) -> Some(v, rest)
   | _ -> None
   )
 
 let q input =
   match ParseContext.Init input with
-  |YesNos(msg, End) -> msg
+  |YesNos(v, End) -> v.ToString()
   | _ -> "parse failure"
 
-q "yes"
-q "yesyesnoyesnoyes" // demonstrate recursive, packrat parsing. In this case it just rebuilds the original string but could be a data structure
-q "yesn" // should return "parse failure"
-q "yesnoyesyesnonoyes"
+q "Yes" = "1" // basic query, showing conversion of Yes/No to binary
+q "yes" = "1" // shows that it's case-insensitive
+q "yesyesnoyesnoyes" = "110101" // show a more complex conversion
+q "yesn" = "parse failure" // show what happens with bad input
+q "yes no yes yesNonoYES" = "1011001" // show that interior spacing can be ignored
+q "yesyesyesyesyesyesyesyesnoyesnoyesyesyesyesyesyesyesno" = "1111111101011111110" // can handle large numbers
