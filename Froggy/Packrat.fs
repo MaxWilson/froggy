@@ -108,7 +108,7 @@ let alphanumeric = alpha + numeric
 
 let (|Chars|_|) alphabet ((ctx, ix): Input) =
   let rec seek i =
-    if i < ctx.input.Length && Set.contains ctx.input.[ix] alphabet then seek ix+1
+    if i < ctx.input.Length && Set.contains ctx.input.[i] alphabet then seek (i+1)
     else i
   match seek ix with
   | endpos when endpos > ix -> Some(ctx.input.Substring(ix, endpos - ix), (ctx, endpos))
@@ -119,4 +119,8 @@ let (|Word|_|) = (|Chars|_|) alphanumeric
 let (|Words|_|) = (|Chars|_|) (alphanumeric |> Set.add ' ')
 
 // Optional whitespace
-let (|OWS|) = (|Chars|_|) whitespace
+let (|OWS|) ((ctx, ix): Input) =
+  let rec seek i =
+    if i >= ctx.input.Length || ctx.input.[i] <> ' ' then i
+    else seek (i+1)
+  ctx, (seek ix)
