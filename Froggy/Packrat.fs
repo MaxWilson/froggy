@@ -91,40 +91,32 @@ let pack (rule: Rule<'t>) : Input -> ('t * Input) option =
           Some(v, output)
   eval // return eval function
 
-// Here's a simple grammar which demonstrates usage
+// Here's some basic parser primitives that might be useful for anything
+
 let (|End|_|) ((ctx, ix): Input) =
   if ix = ctx.input.Length then Some() else None
 
 let (|Str|_|) (str: string) ((ctx, ix): Input) =
   if ix + str.Length <= ctx.input.Length && System.String.Equals(ctx.input.Substring(ix, str.Length), str, System.StringComparison.InvariantCultureIgnoreCase) then Some((ctx, ix+str.Length)) else None
 
-// Optional whitespace
-let (|OWS|) ((ctx, ix): Input) =
+// set up some basic alphabets
+let alpha = Set<_>['A'..'Z'] + Set<_>['a'..'z']
+let numeric = Set<_>['0'..'9']
+let whitespace = Set<_>[' '; '\t'; '\n'; '\r']
+let arithmeticOperators = Set<_>['+'; '-']
+let alphanumeric = alpha + numeric
+
+let (|Chars|_|) alphabet ((ctx, ix): Input) =
   let rec seek i =
-    if i >= ctx.input.Length || ctx.input.[i] <> ' ' then i
-    else seek (i+1)
-  ctx, (seek ix)
-
-let (|YesNo|_|) = function
-  | Str "No" rest -> Some(0I, rest)
-  | Str "Yes" rest -> Some(1I, rest)
+    if i < ctx.input.Length && Set.contains ctx.input.[ix] alphabet then seek ix+1
+    else i
+  match seek ix with
+  | endpos when endpos > ix -> Some(ctx.input.Substring(ix, endpos - ix), (ctx, endpos))
   | _ -> None
-let rec (|YesNos|_|) =
-  pack(
-    function
-    | YesNos(v1, OWS(YesNo(v2, rest))) -> Some(v1*10I+v2, rest)
-    | YesNo(v, rest) -> Some(v, rest)
-    | _ -> None
-  )
 
-let q input =
-  match ParseContext.Init input with
-  |YesNos(v, End) -> v.ToString()
-  | _ -> "parse failure"
+let (|Word|_|) = function
+  | Chars alphanumeric (v, rest) -> Some(v, rest)
+  | _ -> None
 
-q "Yes" = "1" // basic query, showing conversion of Yes/No to binary
-q "yes" = "1" // shows that it's case-insensitive
-q "yesyesnoyesnoyes" = "110101" // show a more complex conversion
-q "yesn" = "parse failure" // show what happens with bad input
-q "yes no yes yesNonoYES" = "1011001" // show that interior spacing can be ignored
-q "yesyesyesyesyesyesyesyesnoyesnoyesyesyesyesyesyesyesno" = "1111111101011111110" // can handle large numbers
+// Optional whitespace
+let (|OWS|) = (|Chars|_|) whitespace

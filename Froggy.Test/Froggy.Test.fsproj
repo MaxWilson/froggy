@@ -88,6 +88,11 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Dnd5E\Dnd5E.fsproj">
+      <Name>Dnd5E</Name>
+      <Project>{9a0001b6-9495-4529-aa0a-9a1bb806affc}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <ProjectReference Include="..\Froggy\Froggy.fsproj">
       <Name>Froggy</Name>
       <Project>{966dec08-ddb9-49d4-8e4d-090cf24c2959}</Project>
