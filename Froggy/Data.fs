@@ -1,2 +1,2 @@
-﻿module Data
+﻿module Froggy.Data
 

@@ -109,11 +109,12 @@ let (|YesNo|_|) = function
   | Str "No" rest -> Some(0I, rest)
   | Str "Yes" rest -> Some(1I, rest)
   | _ -> None
-let rec (|YesNos|_|) = pack(
-  function
-  | YesNos(v1, OWS(YesNo(v2, rest))) -> Some(v1*10I+v2, rest)
-  | YesNo(v, rest) -> Some(v, rest)
-  | _ -> None
+let rec (|YesNos|_|) =
+  pack(
+    function
+    | YesNos(v1, OWS(YesNo(v2, rest))) -> Some(v1*10I+v2, rest)
+    | YesNo(v, rest) -> Some(v, rest)
+    | _ -> None
   )
 
 let q input =
