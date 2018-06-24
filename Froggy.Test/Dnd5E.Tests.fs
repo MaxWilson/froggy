@@ -35,6 +35,10 @@ let CornerCasees() =
   let mutable i = 11
   let ctx = StatBank((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
   let proc cmd = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse |> ctx.Execute
+  let failproc cmd =
+    let cmd = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse
+    Assert.Equal(Commands.Noop, cmd)
+    cmd |> ctx.Execute
   Assert.Equal("", !output)
   proc "new"
   Assert.Contains("Name: Unnamed", !output)
@@ -43,7 +47,7 @@ let CornerCasees() =
   proc "namebob" // not a valid name, should change nothing
   Assert.Contains("Name: Uncanny John, eater of fish", !output)
   proc "roll"
-  proc "assign 6 4 2 3 1 4" // invalid assignment (duplicates) should change nothing
+  failproc "assign 6 4 2 3 1 4" // invalid assignment (duplicates) should change nothing except potentially outputting a parse error
   Assert.Contains ("Str 12", !output)
   Assert.Contains ("Dex 13", !output)
   Assert.Contains ("Con 14", !output)
