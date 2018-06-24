@@ -156,6 +156,6 @@ let generateVariant pcLevels difficulty =
   printfn "%A\nDifficulty: %s [%s] (%i [%i])\n%s [%s]" (pack roster) actualDifficulty standardDifficulty cost standardCost (System.String.Join("/", xpBudgets)) (System.String.Join("/", standardXpBudgets))
   pack roster
 
-generateVariant [5;11;9;13] 2
+generateVariant [5;11;9;13] 4
 generateStandard [5;11;9;13] 5
 
