@@ -4,6 +4,10 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <NoWarn>40</NoWarn>
+  </PropertyGroup>
+
   <ItemGroup>
     <Compile Include="Data.fs" />
     <Compile Include="CharGen.fs" />

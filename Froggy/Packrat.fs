@@ -141,3 +141,10 @@ let (|WS|_|) ((ctx, ix): Input) =
   match seek ix with
   | endx when endx > ix -> Some(ctx, endx)
   | _ -> None
+
+let (|Int|_|) = function
+  | OWS(Chars numeric (v, OWS(rest))) ->
+    match System.Int32.TryParse(v) with
+    | true, v -> Some(v, rest)
+    | _ -> None
+  | _ -> None

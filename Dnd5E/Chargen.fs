@@ -1,5 +1,6 @@
 module Froggy.Dnd5e.CharGen
 open Froggy.Packrat
+open Froggy.Common
 
 module Commands =
   type Command =
@@ -13,10 +14,18 @@ module Commands =
 open Commands
 open Data
 
+let rec (|Ints|_|) = pack <| function
+  | Ints(lst, Int(v, rest)) ->
+    Some(lst @ [v], rest)
+  | Int(v, rest) -> Some([v], rest)
+  | _ -> None
+
 let parse = function
   | Str "new" End | Str "begin" End -> NewContext
   | Str "name" (WS (Any (name, End))) -> SetName <| name.Trim()
   | Words (AnyCase("rollstats" | "roll stats" | "roll"), End) -> RollStats
+  | Str "assign" (Ints(stats, rest)) when stats.Length = 6 && stats |> Set.ofSeq |> Seq.length = stats.Length && (stats |> Seq.exists (betweenInclusive 1 6) |> not) -> // must be 6 unique numbers 1-6
+    AssignStats stats
   | _ -> Noop
 
 type State = {
@@ -54,6 +63,11 @@ let update state resolve = function
         Wis = resolve (RollSpec.SumBestNofM(4,3,6))
         Cha = resolve (RollSpec.SumBestNofM(4,3,6))
     }
+  | AssignStats(order) ->
+    let { Str = a; Dex = b; Con = c; Int = d; Wis = e; Cha = f } = state
+    let stats = [a;b;c;d;e;f]
+    let fetch x = stats.[order.[x]-1]
+    { state with Str = fetch 0; Dex = fetch 1; Con = fetch 2; Int = fetch 3; Wis = fetch 4; Cha = fetch 5 }
   | Noop -> state
 
 let view state =
