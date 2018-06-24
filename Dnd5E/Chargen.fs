@@ -24,7 +24,7 @@ let parse = function
   | Str "new" End | Str "begin" End -> NewContext
   | Str "name" (WS (Any (name, End))) -> SetName <| name.Trim()
   | Words (AnyCase("rollstats" | "roll stats" | "roll"), End) -> RollStats
-  | Str "assign" (Ints(stats, rest)) when stats.Length = 6 && stats |> Set.ofSeq |> Seq.length = stats.Length && (stats |> Seq.exists (betweenInclusive 1 6) |> not) -> // must be 6 unique numbers 1-6
+  | Str "assign" (Ints(stats, rest)) when stats.Length = 6 && stats |> Set.ofSeq |> Seq.length = stats.Length && (stats |> Seq.exists (betweenInclusive 1 6 >> not) |> not) -> // must be 6 unique numbers all 1-6
     AssignStats stats
   | _ -> Noop
 
@@ -50,7 +50,8 @@ type State = {
     HP = 1
   }
 
-let update state resolve = function
+let update resolve cmd state =
+  match cmd with
   | NewContext -> State.Empty
   | SetName v -> { state with Name = v }
   | RollStats ->
@@ -77,7 +78,7 @@ type StatBank(roll) =
   let mutable state = State.Empty
   member val UpdateStatus = (fun (str: string) -> ()) with get, set
   member this.Execute(cmd: Command) =
-    state <- (update state roll cmd)
+    state <- (update roll cmd state)
     view state |> this.UpdateStatus
   new() =
     let random = System.Random()

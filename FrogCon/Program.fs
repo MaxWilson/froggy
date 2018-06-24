@@ -8,6 +8,7 @@ open Froggy.Dnd5e.CharGen
 [<EntryPoint>]
 let main argv =
   let st = new StatBank(UpdateStatus = printfn "%s\n")
+  st.Execute(Commands.RollStats)
   let rec commandLoop previousCommand =
     printf "> "
     match ParseContext.Init <| Console.ReadLine() with

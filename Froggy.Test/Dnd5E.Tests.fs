@@ -37,11 +37,12 @@ let CornerCasees() =
   let proc cmd = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse |> ctx.Execute
   Assert.Equal("", !output)
   proc "new"
-  Assert.Equal("Name: Unnamed", !output)
+  Assert.Contains("Name: Unnamed", !output)
   proc "name     Uncanny John, eater of fish  " // deliberate extraneous whitespace and commas
   Assert.Contains("Name: Uncanny John, eater of fish", !output)
   proc "namebob" // not a valid name, should change nothing
   Assert.Contains("Name: Uncanny John, eater of fish", !output)
+  proc "roll"
   proc "assign 6 4 2 3 1 4" // invalid assignment (duplicates) should change nothing
   Assert.Contains ("Str 12", !output)
   Assert.Contains ("Dex 13", !output)
