@@ -135,14 +135,14 @@ let generateStandard pcLevels difficulty =
   roster
 
 let generateVariant pcLevels difficulty =
-  let scale = 1.
-  let adapt x = (x/50.) ** scale * 50.
-  let revert x = (((x/50.) ** (1./scale)) * 50.)
+  let scale = 1.5
+  let downscale x = (x/50.) ** (1./scale)// * 50.
+  let upscale x = x ** scale * 50. //(((x/50.) ** (scale)) * 50.)
   let calculateStandardCost = calculateCost pcLevels
   let calculateCost roster =
-    roster |> List.sumBy(fun monsterName -> monsters |> List.find (fst >> (=) monsterName) |> snd |> float |> adapt) |> revert |> int
+    roster |> List.sumBy(fun monsterName -> monsters |> List.find (fst >> (=) monsterName) |> snd |> float |> downscale) |> upscale |> int
   let standardXpBudgets = xpBudgets id id pcLevels
-  let xpBudgets = xpBudgets (float >> revert >> int) (float >> adapt >> int) pcLevels
+  let xpBudgets = xpBudgets (float >> downscale >> int) (fun x -> float x/3. |> upscale |> (*) 3. |> int) pcLevels
   let roster = generate calculateCost monsterParties xpBudgets difficulty
   let cost = calculateCost roster
   let standardCost = calculateStandardCost roster
@@ -156,6 +156,6 @@ let generateVariant pcLevels difficulty =
   printfn "%A\nDifficulty: %s [%s] (%i [%i])\n%s [%s]" (pack roster) actualDifficulty standardDifficulty cost standardCost (System.String.Join("/", xpBudgets)) (System.String.Join("/", standardXpBudgets))
   pack roster
 
-generateVariant [5;11;9;13] 4
+generateVariant [5;11;9;13] 8
 generateStandard [5;11;9;13] 5
 
