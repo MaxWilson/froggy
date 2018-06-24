@@ -65,7 +65,7 @@ let update state resolve = function
     }
   | AssignStats(order) ->
     let { Str = a; Dex = b; Con = c; Int = d; Wis = e; Cha = f } = state
-    let stats = [a;b;c;d;e;f]
+    let stats = [a;b;c;d;e;f] |> List.sortDescending
     let fetch x = stats.[order.[x]-1]
     { state with Str = fetch 0; Dex = fetch 1; Con = fetch 2; Int = fetch 3; Wis = fetch 4; Cha = fetch 5 }
   | Noop -> state

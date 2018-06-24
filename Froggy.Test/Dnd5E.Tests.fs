@@ -21,12 +21,12 @@ let UsageTest() =
   Assert.Contains ("Wis 16", !output)
   Assert.Contains ("Cha 17", !output)
   proc "assign 6 5 2 3 1 4"
-  Assert.Contains ("Str 17", !output)
-  Assert.Contains ("Dex 16", !output)
-  Assert.Contains ("Con 13", !output)
-  Assert.Contains ("Int 14", !output)
-  Assert.Contains ("Wis 12", !output)
-  Assert.Contains ("Cha 15", !output)
+  Assert.Contains ("Str 12", !output)
+  Assert.Contains ("Dex 13", !output)
+  Assert.Contains ("Con 16", !output)
+  Assert.Contains ("Int 15", !output)
+  Assert.Contains ("Wis 17", !output)
+  Assert.Contains ("Cha 14", !output)
 
 
 [<Fact(DisplayName="Usage tests: verify corner cases for parse commands")>]
