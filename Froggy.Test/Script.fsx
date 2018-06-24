@@ -73,8 +73,10 @@ let xpBudgets adapt revert pcLevels =
     pcLevels
     |> List.fold(fun (e,m,h,d) level ->
         let (_, _, _, easy, medium, hard, deadly) = pcmetrics.[level]
+        let adapt = float >> adapt
         (e + adapt easy, m + adapt medium, h + adapt hard, d + adapt deadly)
-        )(0,0,0,0)
+        )(0.,0.,0.,0.)
+  let revert = revert >> int
   [0;revert e; revert m; revert h; revert d]
 
 let xpBudget (xpBudgets: int list) difficulty =
@@ -142,7 +144,7 @@ let generateVariant monsterParties pcLevels difficulty =
   let calculateCost roster =
     roster |> List.sumBy(fun monsterName -> monsters |> List.find (fst >> (=) monsterName) |> snd |> float |> downscale) |> upscale |> int
   let standardXpBudgets = xpBudgets id id pcLevels
-  let xpBudgets = xpBudgets (float >> downscale >> int) (fun x -> float x/3. |> upscale |> (*) 3. |> int) pcLevels
+  let xpBudgets = xpBudgets (float >> downscale) (fun x -> float x/3. |> upscale |> (*) 3.) pcLevels
   let roster = generate calculateCost monsterParties xpBudgets difficulty
   let cost = calculateCost roster
   let standardCost = calculateStandardCost roster
@@ -161,3 +163,5 @@ generateVariant monsterParties [20;20;20;20] 5
 generateStandard [5;11;9;13] 5
 
 generateVariant monsterParties [1;1;1;1] 4
+
+generateVariant [["Goblin",1;"Orc",1;"Hobgoblin",1]] [1;1;1;1] 4
