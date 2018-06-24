@@ -116,11 +116,28 @@ let (|Chars|_|) alphabet ((ctx, ix): Input) =
 
 let (|Word|_|) = (|Chars|_|) alphanumeric
 
-let (|Words|_|) = (|Chars|_|) (alphanumeric |> Set.add ' ')
+let (|Words|_|) =
+  let set = (alphanumeric |> Set.add ' ')
+  function
+  | Chars set (words, rest) -> Some(words.Trim(), rest)
+  | _ -> None
+
+let (|AnyCase|) (input: string) = input.ToLowerInvariant()
+
+let (|Any|) ((ctx, ix): Input) =
+  ctx.input.Substring(ix), (ctx, ctx.input.Length)
 
 // Optional whitespace
 let (|OWS|) ((ctx, ix): Input) =
   let rec seek i =
-    if i >= ctx.input.Length || ctx.input.[i] <> ' ' then i
-    else seek (i+1)
+    if i < ctx.input.Length && Set.contains ctx.input.[i] whitespace then seek (i+1)
+    else i
   ctx, (seek ix)
+// Required whitespace
+let (|WS|_|) ((ctx, ix): Input) =
+  let rec seek i =
+    if i < ctx.input.Length && Set.contains ctx.input.[i] whitespace then seek (i+1)
+    else i
+  match seek ix with
+  | endx when endx > ix -> Some(ctx, endx)
+  | _ -> None

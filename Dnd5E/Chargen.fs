@@ -12,10 +12,10 @@ module Commands =
     | Noop
 open Commands
 
-let parse commandString =
-  match ParseContext.Init commandString with
+let parse = function
   | Str "new" End | Str "begin" End -> NewContext
-  | Str "name" (Words (name, End)) -> SetName name
+  | Str "name" (WS (Any (name, End))) -> SetName <| name.Trim()
+  | Words (AnyCase("rollstats" | "roll stats" | "roll"), End) -> RollStats
   | _ -> Noop
 
 type State = { Name : string }
