@@ -78,7 +78,7 @@ let xpBudgets pcLevels =
   [0;e;m;h;d]
 
 let xpBudget (xpBudgets: int list) difficulty =
-  if difficulty > 4 then xpBudgets.[4] * (difficulty - 4)
+  if difficulty > 4 then xpBudgets.[4] * (difficulty - 3)
   else xpBudgets.[difficulty]
 
 let calculateCost (pcLevels: _ list) roster = (roster |> List.sumBy(fun monsterName -> monsters |> List.find (fst >> (=) monsterName) |> snd) |> float) * (xpMultiplier pcLevels.Length (List.length roster)) |> int
@@ -124,7 +124,7 @@ let showCost roster cost (xpBudgets: _ list) =
   printfn "%A\nDifficulty: %s (%i)\n%A" roster actualDifficulty cost xpBudgets
 
 let generateVariant pcLevels difficulty =
-  let adapt = sqrt
+  let adapt x = sqrt (x/50.)
   let calculateCost roster =
     roster |> List.sumBy(fun monsterName -> monsters |> List.find (fst >> (=) monsterName) |> snd |> float |> adapt) |> int
   let xpBudgets = xpBudgets pcLevels |> List.map (float >> adapt >> int)
@@ -139,5 +139,5 @@ let generateStandard pcLevels difficulty =
   showCost roster cost xpBudgets
   roster
 
+generateVariant [5;11;9;13] 5
 generateStandard [5;11;9;13] 4
-generateVariant [5;11;9;13] 4
