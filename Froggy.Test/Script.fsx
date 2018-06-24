@@ -68,19 +68,23 @@ let xpMultiplier nPCs nMonsters =
 
 let r = System.Random()
 
-let generate pcLevels difficulty =
-  let xpBudgets =
-    let e,m,h,d =
-      pcLevels
-      |> List.fold(fun (e,m,h,d) level ->
-          let (_, _, _, easy, medium, hard, deadly) = pcmetrics.[level]
-          (e+easy,m+medium,h+hard,d+deadly)
-          )(0,0,0,0)
-    [0;e;m;h;d]
-  let xpBudget =
-    if difficulty > 4 then xpBudgets.[4] * (difficulty - 4)
-    else xpBudgets.[difficulty]
-  let calculateCost lst = (lst |> List.sumBy(fun monsterName -> monsters |> List.find (fst >> (=) monsterName) |> snd) |> float) * (xpMultiplier pcLevels.Length (List.length lst)) |> int
+let xpBudgets pcLevels =
+  let e,m,h,d =
+    pcLevels
+    |> List.fold(fun (e,m,h,d) level ->
+        let (_, _, _, easy, medium, hard, deadly) = pcmetrics.[level]
+        (e+easy,m+medium,h+hard,d+deadly)
+        )(0,0,0,0)
+  [0;e;m;h;d]
+
+let xpBudget (xpBudgets: int list) difficulty =
+  if difficulty > 4 then xpBudgets.[4] * (difficulty - 4)
+  else xpBudgets.[difficulty]
+
+let calculateCost (pcLevels: _ list) roster = (roster |> List.sumBy(fun monsterName -> monsters |> List.find (fst >> (=) monsterName) |> snd) |> float) * (xpMultiplier pcLevels.Length (List.length roster)) |> int
+
+let generate calculateCost xpBudgets difficulty =
+  let xpBudget = xpBudget xpBudgets difficulty
   let pickFrom (source: (string * int) list) =
     let total = source |> List.sumBy snd
     let normalized = source |> List.fold (fun (prevSum, accum) (name, weight) -> (prevSum + weight), (name, prevSum)::accum) (0, []) |> snd
@@ -111,10 +115,29 @@ let generate pcLevels difficulty =
       roster
       |> List.groupBy id
       |> List.map (fun (name, lst) -> name, List.length lst)
+  roster, cost
+
+let showCost roster cost (xpBudgets: _ list) =
   let actualDifficulty =
     if cost >= xpBudgets.[4] * 2 then sprintf "Deadly x%d" (cost / xpBudgets.[4])
     else ["Trivial";"Easy";"Medium";"Hard";"Deadly"].[xpBudgets |> List.findIndexBack (fun threshold -> cost >= threshold)]
   printfn "%A\nDifficulty: %s (%i)\n%A" roster actualDifficulty cost xpBudgets
+
+let generateVariant pcLevels difficulty =
+  let adapt = sqrt
+  let calculateCost roster =
+    roster |> List.sumBy(fun monsterName -> monsters |> List.find (fst >> (=) monsterName) |> snd |> float |> adapt) |> int
+  let xpBudgets = xpBudgets pcLevels |> List.map (float >> adapt >> int)
+  let roster, cost = generate calculateCost xpBudgets difficulty
+  showCost roster cost xpBudgets
   roster
 
-generate [5;8;5;9] 6
+let generateStandard pcLevels difficulty =
+  let calculateCost = calculateCost pcLevels
+  let xpBudgets = xpBudgets pcLevels
+  let roster, cost = generate calculateCost xpBudgets difficulty
+  showCost roster cost xpBudgets
+  roster
+
+generateStandard [5;11;9;13] 4
+generateVariant [5;11;9;13] 4
