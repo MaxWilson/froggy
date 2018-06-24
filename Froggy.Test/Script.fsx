@@ -152,9 +152,10 @@ let generateVariant monsterParties pcLevels difficulty =
   let actualDifficulty =
     if cost >= xpBudgets.[4] * 2 then sprintf "Deadly x%d" (cost / xpBudgets.[4])
     else ["Trivial";"Easy";"Medium";"Hard";"Deadly"].[xpBudgets |> List.findIndexBack (fun threshold -> cost >= threshold)]
-  printfn "%A\nDifficulty: %s [%s] (%i [%i])\n%s [%s]" (pack roster) actualDifficulty standardDifficulty cost standardCost (System.String.Join("/", xpBudgets)) (System.String.Join("/", standardXpBudgets))
+  printfn "Difficulty: %s [%s] (%i [%i])\n%s [%s]" actualDifficulty standardDifficulty cost standardCost (System.String.Join("/", xpBudgets)) (System.String.Join("/", standardXpBudgets))
   pack roster
 
 generateVariant monsterParties [20;20;20;20] 2
 generateStandard [5;11;9;13] 5
 
+generateVariant monsterParties [1;1;1;1] 4
