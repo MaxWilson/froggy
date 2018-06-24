@@ -24,7 +24,7 @@ let parse = function
   | Str "new" End | Str "begin" End -> NewContext
   | Str "name" (WS (Any (name, End))) -> SetName <| name.Trim()
   | Words (AnyCase("rollstats" | "roll stats" | "roll"), End) -> RollStats
-  | Str "assign" (Ints(stats, rest)) when stats.Length = 6 && stats |> Set.ofSeq |> Seq.length = stats.Length && (stats |> Seq.exists (betweenInclusive 1 6 >> not) |> not) -> // must be 6 unique numbers all 1-6
+  | Str "assign" (Ints(stats, rest)) when stats.Length = 6 -> // must be 6 numbers that will be interpreted as priorities for stats, in order
     AssignStats stats
   | _ -> Noop
 
@@ -50,6 +50,15 @@ type State = {
     HP = 1
   }
 
+module Prop =
+  let Str = Lens.lens (fun x -> x.Str) (fun v x -> { x with Str = v })
+  let Dex = Lens.lens (fun x -> x.Dex) (fun v x -> { x with Dex = v })
+  let Con = Lens.lens (fun x -> x.Con) (fun v x -> { x with Con = v })
+  let Int = Lens.lens (fun x -> x.Int) (fun v x -> { x with Int = v })
+  let Wis = Lens.lens (fun x -> x.Wis) (fun v x -> { x with Wis = v })
+  let Cha = Lens.lens (fun x -> x.Cha) (fun v x -> { x with Cha = v })
+  let StatsInOrder = [Str;Dex;Con;Int;Wis;Cha]
+
 let update resolve cmd state =
   match cmd with
   | NewContext -> State.Empty
@@ -65,10 +74,12 @@ let update resolve cmd state =
         Cha = resolve (RollSpec.SumBestNofM(4,3,6))
     }
   | AssignStats(order) ->
-    let { Str = a; Dex = b; Con = c; Int = d; Wis = e; Cha = f } = state
-    let stats = [a;b;c;d;e;f] |> List.sortDescending
-    let fetch x = stats.[order.[x]-1]
-    { state with Str = fetch 0; Dex = fetch 1; Con = fetch 2; Int = fetch 3; Wis = fetch 4; Cha = fetch 5 }
+    let statValues = Prop.StatsInOrder |> List.map (flip Lens.view state) |> List.sortDescending
+    let statsByPriority = Prop.StatsInOrder |> List.mapi (fun i prop -> order.[i], prop) |> List.sortBy fst
+    let state = statsByPriority
+                |> List.mapi (fun i (_, prop) -> i, prop) // now that they're in order of priority, match each one up with a unique statValue index
+                |> List.fold (fun state (ix, prop) -> state |> Lens.set prop statValues.[ix]) state
+    state
   | Noop -> state
 
 let view state =

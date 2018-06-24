@@ -47,10 +47,17 @@ let CornerCasees() =
   proc "namebob" // not a valid name, should change nothing
   Assert.Contains("Name: Uncanny John, eater of fish", !output)
   proc "roll"
-  failproc "assign 6 4 2 3 1 4" // invalid assignment (duplicates) should change nothing except potentially outputting a parse error
+  failproc "assign 6 4 2 3 1" // invalid assignment (wrong number of stats) should change nothing except potentially outputting a parse error
   Assert.Contains ("Str 12", !output)
   Assert.Contains ("Dex 13", !output)
   Assert.Contains ("Con 14", !output)
   Assert.Contains ("Int 15", !output)
   Assert.Contains ("Wis 16", !output)
   Assert.Contains ("Cha 17", !output)
+  proc "assign 1 4 4 2 3 5" // ties should be allowed as meaning "don't care", and broken arbitrarily
+  Assert.Contains ("Str 17", !output)
+  Assert.True (output.Value.Contains("Dex 13")||output.Value.Contains("Con 13"))
+  Assert.True (output.Value.Contains("Dex 14")||output.Value.Contains("Con 14"))
+  Assert.Contains ("Int 16", !output)
+  Assert.Contains ("Wis 15", !output)
+  Assert.Contains ("Cha 12", !output)
