@@ -134,7 +134,7 @@ let generateStandard pcLevels difficulty =
   showCost roster cost xpBudgets
   roster
 
-let generateVariant pcLevels difficulty =
+let generateVariant monsterParties pcLevels difficulty =
   let scale = 1.5
   let downscale x = (x/50.) ** (1./scale)// * 50.
   let upscale x = x ** scale * 50. //(((x/50.) ** (scale)) * 50.)
@@ -146,7 +146,6 @@ let generateVariant pcLevels difficulty =
   let roster = generate calculateCost monsterParties xpBudgets difficulty
   let cost = calculateCost roster
   let standardCost = calculateStandardCost roster
-  let roster = pack roster
   let standardDifficulty =
     if standardCost >= standardXpBudgets.[4] * 2 then sprintf "Deadly x%d" (standardCost / standardXpBudgets.[4])
     else ["Trivial";"Easy";"Medium";"Hard";"Deadly"].[standardXpBudgets |> List.findIndexBack (fun threshold -> standardCost >= threshold)]
@@ -156,6 +155,6 @@ let generateVariant pcLevels difficulty =
   printfn "%A\nDifficulty: %s [%s] (%i [%i])\n%s [%s]" (pack roster) actualDifficulty standardDifficulty cost standardCost (System.String.Join("/", xpBudgets)) (System.String.Join("/", standardXpBudgets))
   pack roster
 
-generateVariant [5;11;9;13] 8
+generateVariant monsterParties [20;20;20;20] 2
 generateStandard [5;11;9;13] 5
 
