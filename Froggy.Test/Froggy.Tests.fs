@@ -57,5 +57,4 @@ let ``Usage tests: verify that chargen commands can be parsed correctly``() =
   Assert.Equal("", !output)
   proc "name Mengar the Magnificent"
   Assert.Contains("Name: Mengar the Magnificent", !output)
-  Assert.Equal("x", !output)
 

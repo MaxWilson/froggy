@@ -18,7 +18,20 @@ let parse commandString =
   | Str "name" (Words (name, End)) -> SetName name
   | _ -> Noop
 
-type StatBank() =
-  member val UpdateStatus = (fun (str: string) -> ()) with get, set
-  member this.Execute(cmd: Command) = ()
+type State = { Name : string }
+  with static member Empty = { Name = "Unnamed" }
 
+let update state = function
+  | NewContext -> State.Empty
+  | SetName v -> { state with Name = v }
+  | _ -> state
+
+let view state =
+  sprintf "Name: %s" state.Name
+
+type StatBank() =
+  let mutable state = State.Empty
+  member val UpdateStatus = (fun (str: string) -> ()) with get, set
+  member this.Execute(cmd: Command) =
+    state <- (update state cmd)
+    view state |> this.UpdateStatus
