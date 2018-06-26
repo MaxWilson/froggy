@@ -3,17 +3,51 @@ module froggyWeb
 open Fable.Core
 open Fable.Core.JsInterop
 open Fable.Import
+open EncounterGen
+open Elmish
+open Fable.Helpers.React.Props
+open Froggy.Common
+open Elmish.React
+module R = Fable.Helpers.React
 
-let init() =
-    let canvas = Browser.document.getElementsByTagName_canvas().[0]
-    canvas.width <- 1000.
-    canvas.height <- 800.
-    let ctx = canvas.getContext_2d()
-    // The (!^) operator checks and casts a value to an Erased Union type
-    // See http://fable.io/docs/interacting.html#Erase-attribute
-    ctx.fillStyle <- !^"rgb(200,0,0)"
-    ctx.fillRect (10., 10., 55., 50.)
-    ctx.fillStyle <- !^"rgba(0, 0, 200, 0.5)"
-    ctx.fillRect (30., 30., 55., 50.)
+type Model = { number: int; level: int; difficulty: int; msg: string }
+type Msg = Generate | AlterLevel of int | AlterPCNumber of int | AlterDifficulty of int
 
-init()
+let update msg model =
+  match msg with
+  | AlterLevel(n) -> { model with level = model.level + n |> max 1 |> min 20 }
+  | AlterPCNumber(n) -> { model with number = model.number + n |> max 1 }
+  | AlterDifficulty(n) -> { model with difficulty = model.difficulty + n |> max 1 }
+  | Generate ->
+    { model with msg = generateVariant monsterParties (List.init model.number (thunk model.level)) model.difficulty }
+
+let init() = { msg = "Push the button to generate an encounter"; level = 1; difficulty = 4; number = 4 }
+
+let descr model =
+  let diff =
+    match model.difficulty with
+    | n when n <= 4 -> ["Easy";"Medium";"Hard";"Deadly"].[n-1]
+    | n -> "Deadly x" + (n - 3).ToString()
+  let lev =
+    match model.level with
+    | 1 -> "1st"
+    | 2 -> "2nd"
+    | n -> (n.ToString()) + "th"
+  sprintf "%s encounter for %i %s-level PCs" diff model.number lev
+
+let view model d =
+  R.div []
+      [ R.div [] [ R.str <| descr model ]
+        R.button [ OnClick (fun _ -> d <| AlterLevel +1) ] [ R.str "Add PC" ]
+        R.button [ OnClick (fun _ -> d <| AlterLevel -1) ] [ R.str "Remove PC" ]
+        R.button [ OnClick (fun _ -> d <| AlterPCNumber +1) ] [ R.str "Stronger PCs" ]
+        R.button [ OnClick (fun _ -> d <| AlterPCNumber -1) ] [ R.str "Weaker PCs" ]
+        R.button [ OnClick (fun _ -> d <| AlterDifficulty +1) ] [ R.str "Harder" ]
+        R.button [ OnClick (fun _ -> d <| AlterDifficulty -1) ] [ R.str "Easier" ]
+        R.button [ OnClick (fun _ -> Generate |> d) ] [ R.str "Go" ]
+        R.div [] [ R.str <| model.msg.Replace("\n", "<p>") ]
+]
+
+Program.mkSimple init update view
+|> Program.withReact "elmish-app"
+|> Program.run

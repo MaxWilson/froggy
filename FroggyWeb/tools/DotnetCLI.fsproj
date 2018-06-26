@@ -1,11 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
 <!-- Only for dotnet CLI tools, see paket.references -->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
   <ItemGroup>
+    <Content Include="Scripts\react\JSXTransformer.js">
+      <Paket>True</Paket>
+    </Content>
+    <Content Include="Scripts\react\react-with-addons.js">
+      <Paket>True</Paket>
+    </Content>
+    <Content Include="Scripts\react\react-with-addons.min.js">
+      <Paket>True</Paket>
+    </Content>
+    <Content Include="Scripts\react\react.js">
+      <Paket>True</Paket>
+    </Content>
+    <Content Include="Scripts\react\react.min.js">
+      <Paket>True</Paket>
+    </Content>
     <PackageReference Update="FSharp.Core" Version="4.5.0" />
     <PackageReference Update="System.ValueTuple" Version="4.5.0" />
   </ItemGroup>
+  <Import Project="..\.paket\Paket.Restore.targets" />
 </Project>

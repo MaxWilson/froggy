@@ -20,5 +20,10 @@
     "html-webpack-polyfill-io-plugin": "^1.0.0",
     "webpack": "3.8.1",
     "webpack-dev-server": "2.9.4"
+  },
+  "dependencies": {
+    "fable-react": "^0.8.6",
+    "react": "^16.4.1",
+    "react-dom": "^16.4.1"
   }
 }
