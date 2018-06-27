@@ -9,18 +9,18 @@ open Froggy.Dnd5e.CharGen
 let main argv =
   let st = new StatBank(UpdateStatus = printfn "%s\n")
   st.Execute(Commands.RollStats)
-  let rec commandLoop previousCommand =
+  let rec commandLoop previousCommands =
     printf "> "
     match ParseContext.Init <| Console.ReadLine() with
     | Word (AnyCase("q" | "quit"), End) -> 0
     | End -> // on ENTER, repeat
-      st.Execute previousCommand
-      commandLoop previousCommand
+      previousCommands |> List.iter st.Execute
+      commandLoop previousCommands
     | v -> match parse v with
-           | Commands.Noop ->
+           | [] ->
               printfn "Sorry, come again? (Type 'quit' to quit)"
-              commandLoop previousCommand
-           | cmd ->
-              st.Execute cmd
-              commandLoop cmd
-  commandLoop Commands.Noop
+              commandLoop previousCommands
+           | cmds ->
+              cmds |> List.iter st.Execute
+              commandLoop cmds
+  commandLoop []
