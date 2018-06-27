@@ -1,5 +1,7 @@
+#if INTERACTIVE
+#else
 module EncounterGen
-
+#endif
 
 let monsters = [
   "Wolf", 50
@@ -20,6 +22,8 @@ let monsters = [
   "Mind Flayer Arcanist", 3900
   "Adult White Dragon", 10000
   "Intellect Devourer", 450
+  "Darkling", 100
+  "Beholder", 10000
   ]
 
 let monsterParties = [
@@ -28,6 +32,7 @@ let monsterParties = [
   ["Hobgoblin", 12; "Goblin", 6; "Troll", 1; "Hobgoblin Devastator", 1; "Hobgoblin Captain", 1; "Wolf", 4]
   ["Adult White Dragon", 1; "Young White Dragon", 6]
   ["Young White Dragon", 1; "Mind Flayer", 6; "Mind Flayer Arcanist", 1; "Intellect Devourer", 4; "Goblin", 12]
+  ["Beholder", 1; "Darkling", 20; "Goblin", 20]
   ]
 
 let pcmetrics = [
@@ -84,7 +89,11 @@ let xpBudget (xpBudgets: int list) difficulty =
   if difficulty > 4 then xpBudgets.[4] * (difficulty - 3)
   else xpBudgets.[difficulty]
 
-let calculateCost (pcLevels: _ list) roster = (roster |> List.sumBy(fun monsterName -> monsters |> List.find (fst >> (=) monsterName) |> snd) |> float) * (xpMultiplier pcLevels.Length (List.length roster)) |> int
+let getXPValue monsterName =
+  match monsters |> List.tryFind (fst >> (=) monsterName) with
+  | Some(_, v) -> v
+  | None -> failwithf "Monster '%s' has no XP cost assigned" monsterName
+let calculateCost (pcLevels: _ list) roster = (roster |> List.sumBy(getXPValue) |> float) * (xpMultiplier pcLevels.Length (List.length roster)) |> int
 
 let generate calculateCost monsterParties xpBudgets difficulty =
   let xpBudget = xpBudget xpBudgets difficulty
@@ -154,7 +163,7 @@ let generateVariant monsterParties pcLevels difficulty =
   let upscale x = x ** scale * 50.
   let calculateStandardCost = calculateCost pcLevels
   let calculateCost roster =
-    roster |> List.sumBy(fun monsterName -> monsters |> List.find (fst >> (=) monsterName) |> snd |> float |> downscale) |> upscale |> int
+    roster |> List.sumBy(getXPValue) |> float |> downscale |> upscale |> int
   let standardXPBudgets = xpBudgets id id pcLevels
   let xpBudgets = xpBudgets (float >> downscale) (fun x -> float x/3. |> upscale |> (*) 3.) pcLevels
   let roster = generate calculateCost monsterParties xpBudgets difficulty
@@ -166,6 +175,6 @@ let generateVariant monsterParties pcLevels difficulty =
   let actualDifficulty =
     if cost >= xpBudgets.[4] * 2 then sprintf "Deadly x%d" (cost / xpBudgets.[4])
     else ["Trivial";"Easy";"Medium";"Hard";"Deadly"].[xpBudgets |> List.findIndexBack (fun threshold -> cost >= threshold)]
-  let sumXP = roster |> List.sumBy(fun monsterName -> monsters |> List.find (fst >> (=) monsterName) |> snd)
+  let sumXP = roster |> List.sumBy(getXPValue)
   { roster = pack roster; difficulty = actualDifficulty; standardDifficulty = standardDifficulty; cost = cost; standardCost = standardCost; xpBudgets = xpBudgets; standardXPBudgets = standardXPBudgets; earnedXP = sumXP }
 
