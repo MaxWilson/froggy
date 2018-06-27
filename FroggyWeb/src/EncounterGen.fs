@@ -1,4 +1,4 @@
-﻿module EncounterGen
+module EncounterGen
 
 
 let monsters = [
@@ -137,6 +137,17 @@ let generateStandard pcLevels difficulty =
   showCost roster cost xpBudgets
   roster
 
+type Encounter = {
+  roster: (string * int) list
+  difficulty: string
+  standardDifficulty: string
+  earnedXP: int
+  cost: int
+  standardCost: int
+  xpBudgets: int list
+  standardXPBudgets: int list
+}
+
 let generateVariant monsterParties pcLevels difficulty =
   let scale = 1.4
   let downscale x = (x/50.) ** (1./scale)
@@ -144,16 +155,17 @@ let generateVariant monsterParties pcLevels difficulty =
   let calculateStandardCost = calculateCost pcLevels
   let calculateCost roster =
     roster |> List.sumBy(fun monsterName -> monsters |> List.find (fst >> (=) monsterName) |> snd |> float |> downscale) |> upscale |> int
-  let standardXpBudgets = xpBudgets id id pcLevels
+  let standardXPBudgets = xpBudgets id id pcLevels
   let xpBudgets = xpBudgets (float >> downscale) (fun x -> float x/3. |> upscale |> (*) 3.) pcLevels
   let roster = generate calculateCost monsterParties xpBudgets difficulty
   let cost = calculateCost roster
   let standardCost = calculateStandardCost roster
   let standardDifficulty =
-    if standardCost >= standardXpBudgets.[4] * 2 then sprintf "Deadly x%d" (standardCost / standardXpBudgets.[4])
-    else ["Trivial";"Easy";"Medium";"Hard";"Deadly"].[standardXpBudgets |> List.findIndexBack (fun threshold -> standardCost >= threshold)]
+    if standardCost >= standardXPBudgets.[4] * 2 then sprintf "Deadly x%d" (standardCost / standardXPBudgets.[4])
+    else ["Trivial";"Easy";"Medium";"Hard";"Deadly"].[standardXPBudgets |> List.findIndexBack (fun threshold -> standardCost >= threshold)]
   let actualDifficulty =
     if cost >= xpBudgets.[4] * 2 then sprintf "Deadly x%d" (cost / xpBudgets.[4])
     else ["Trivial";"Easy";"Medium";"Hard";"Deadly"].[xpBudgets |> List.findIndexBack (fun threshold -> cost >= threshold)]
-  sprintf "Difficulty: %s [%s] (%i [%i])\n%s [%s]\n%A" actualDifficulty standardDifficulty cost standardCost (System.String.Join("/", xpBudgets)) (System.String.Join("/", standardXpBudgets)) (pack roster)
+  let sumXP = roster |> List.sumBy(fun monsterName -> monsters |> List.find (fst >> (=) monsterName) |> snd)
+  { roster = pack roster; difficulty = actualDifficulty; standardDifficulty = standardDifficulty; cost = cost; standardCost = standardCost; xpBudgets = xpBudgets; standardXPBudgets = standardXPBudgets; earnedXP = sumXP }
 

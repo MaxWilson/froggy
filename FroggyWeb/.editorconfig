@@ -11,5 +11,11 @@ trim_trailing_whitespace = true
 indent_style = space
 indent_size = 4
 
+[*.fs]
+indent_size = 2
+
+[*.fsx]
+indent_size = 2
+
 [*.styl]
 indent_size = 4
