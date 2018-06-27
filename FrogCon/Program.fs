@@ -4,10 +4,23 @@
 open System
 open Froggy.Packrat
 open Froggy.Dnd5e.CharGen
+open System.IO
+open Newtonsoft.Json
+open Froggy.Dnd5e
 
 [<EntryPoint>]
 let main argv =
-  let st = new StatBank(UpdateStatus = printfn "%s\n")
+  let save characterName (data:  State) =
+    use file = File.OpenWrite (characterName + ".txt")
+    use writer = new StreamWriter(file)
+    writer.WriteLine(JsonConvert.SerializeObject data)
+  let load characterName =
+    try
+      let json = File.ReadAllText (characterName + ".txt")
+      JsonConvert.DeserializeObject<State>(json) |> Some
+    with
+      exn -> None
+  let st = new StatBank(IO = { save = save; load = load }, UpdateStatus = printfn "%s\n")
   st.Execute(Commands.RollStats)
   let rec commandLoop previousCommands =
     printf "> "
