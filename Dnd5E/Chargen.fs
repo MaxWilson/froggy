@@ -10,7 +10,6 @@ module Commands =
     | AssignStats of int list
     | Save of string
     | Load of string
-    | Noop
 open Commands
 open Data
 
@@ -20,13 +19,24 @@ let rec (|Ints|_|) = pack <| function
   | Int(v, rest) -> Some([v], rest)
   | _ -> None
 
-let parse = function
-  | Str "new" End | Str "begin" End -> NewContext
-  | Str "name" (WS (Any (name, End))) -> SetName <| name.Trim()
-  | Words (AnyCase("rollstats" | "roll stats" | "roll"), End) -> RollStats
+let commaAllowed = (alphanumeric + Set<_>[','])
+
+let (|Command|_|) = pack <| function
+  | Str "new" rest | Str "begin" rest -> Some(NewContext, rest)
+  | Str "name" (WS (Chars commaAllowed (name, rest))) -> Some( SetName <| name.Trim(), rest)
+  | Words (AnyCase("rollstats" | "roll stats" | "roll"), rest) -> Some(RollStats, rest)
   | Str "assign" (Ints(stats, rest)) when stats.Length = 6 -> // must be 6 numbers that will be interpreted as priorities for stats, in order
-    AssignStats stats
-  | _ -> Noop
+    Some(AssignStats stats, rest)
+  | _ -> None
+
+let rec (|Commands|_|) = pack <| function
+  | Commands(cmds, Str ";" (Command(c, rest))) -> Some(cmds @ [c], rest)
+  | Command(c, rest) -> Some([c], rest)
+  | _ -> None
+
+let parse = function
+  | Commands(cmds, End) -> cmds
+  | _ -> []
 
 type State = {
     Name : string
@@ -80,7 +90,6 @@ let update resolve cmd state =
                 |> List.mapi (fun i (_, prop) -> i, prop) // now that they're in order of priority, match each one up with a unique statValue index
                 |> List.fold (fun state (ix, prop) -> state |> Lens.set prop statValues.[ix]) state
     state
-  | Noop -> state
 
 let view state =
   sprintf "Name: %s\nStr %i Dex %i Con %i Int %i Wis %i Cha %i" state.Name state.Str state.Dex state.Con state.Int state.Wis state.Cha

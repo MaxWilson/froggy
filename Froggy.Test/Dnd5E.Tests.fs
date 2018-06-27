@@ -10,7 +10,7 @@ let UsageTest() =
   let output = ref ""
   let mutable i = 11
   let ctx = StatBank((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
-  let proc cmd = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse |> ctx.Execute
+  let proc cmd = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse |> List.iter ctx.Execute
   proc "name Mengar the Magnificent"
   Assert.Contains("Name: Mengar the Magnificent", !output)
   proc "roll"
@@ -34,11 +34,10 @@ let CornerCasees() =
   let output = ref ""
   let mutable i = 11
   let ctx = StatBank((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
-  let proc cmd = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse |> ctx.Execute
+  let proc cmd = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse |> List.iter ctx.Execute
   let failproc cmd =
-    let cmd = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse
-    Assert.Equal(Commands.Noop, cmd)
-    cmd |> ctx.Execute
+    let cmds = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse
+    Assert.Empty(cmds)
   Assert.Equal("", !output)
   proc "new"
   Assert.Contains("Name: Unnamed", !output)
@@ -61,3 +60,7 @@ let CornerCasees() =
   Assert.Contains ("Int 16", !output)
   Assert.Contains ("Wis 15", !output)
   Assert.Contains ("Cha 12", !output)
+  i <- 11
+  proc "name Bob; assign 2 2 2 1 2 2"
+  Assert.Contains("Name: Bob\n", !output)
+  Assert.Contains("Int 17", !output)

@@ -20,12 +20,13 @@ type Model = { number: int; level: int; difficulty: int; encounter: Encounter op
 type Msg = Generate | AlterLevel of int | AlterPCNumber of int | AlterDifficulty of int
 
 let update msg model =
-  let st = match msg with
-  | AlterLevel(n) -> { model with level = model.level + n |> max 1 |> min 20 }
-  | AlterPCNumber(n) -> { model with number = model.number + n |> max 1 }
-  | AlterDifficulty(n) -> { model with difficulty = model.difficulty + n |> max 1 }
-  | Generate ->
-    { model with encounter = Some <| generateVariant monsterParties (List.init model.number (thunk model.level)) model.difficulty }
+  let st =
+    match msg with
+    | AlterLevel(n) -> { model with level = model.level + n |> max 1 |> min 20 }
+    | AlterPCNumber(n) -> { model with number = model.number + n |> max 1 }
+    | AlterDifficulty(n) -> { model with difficulty = model.difficulty + n |> max 1 }
+    | Generate ->
+      { model with encounter = Some <| generateVariant monsterParties (List.init model.number (thunk model.level)) model.difficulty }
   st, Cmd.Empty
 let init() = { encounter = None; level = 1; difficulty = 4; number = 4 }, Cmd.ofMsg Generate
 
@@ -54,7 +55,8 @@ let view model d =
       div [] <|
         match model.encounter with
         | None -> []
-        | Some(e) -> [
+        | Some(e) ->
+          [
           div [Style [FontWeight "bold"]] [str (sprintf "Difficulty %s" e.difficulty)]
           div [] [str (sprintf "(DMG standard difficulty %s)" e.standardDifficulty)]
           div [] [
