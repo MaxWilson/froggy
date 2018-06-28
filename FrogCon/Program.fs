@@ -10,14 +10,14 @@ open Froggy.Dnd5e
 
 [<EntryPoint>]
 let main argv =
-  let save characterName (data:  State) =
+  let save characterName (data:  StatBlock) =
     use file = File.OpenWrite (characterName + ".txt")
     use writer = new StreamWriter(file)
     writer.WriteLine(JsonConvert.SerializeObject data)
   let load characterName =
     try
       let json = File.ReadAllText (characterName + ".txt")
-      JsonConvert.DeserializeObject<State>(json) |> Some
+      JsonConvert.DeserializeObject<StatBlock>(json) |> Some
     with
       exn -> None
   let st = new StatBank(IO = { save = save; load = load }, UpdateStatus = printfn "%s\n")

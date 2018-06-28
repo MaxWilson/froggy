@@ -42,30 +42,63 @@ let parse input =
   | Commands(cmds, End) -> cmds
   | _ -> []
 
-type State = {
-    Name : string
+type StatId = Str | Dex | Con | Int | Wis | Cha
+type StatArray = {
     Str: int
     Dex: int
     Con: int
     Int: int
     Wis: int
     Cha: int
+  }
+
+let statData = [
+  StatId.Str, "Strength", Lens.lens (fun x -> x.Str) (fun v x -> { x with Str = v })
+  StatId.Dex, "Dexerity", Lens.lens (fun x -> x.Dex) (fun v x -> { x with Dex = v })
+  StatId.Con, "Constitution", Lens.lens (fun x -> x.Con) (fun v x -> { x with Con = v })
+  StatId.Int, "Intelligence", Lens.lens (fun x -> x.Int) (fun v x -> { x with Int = v })
+  StatId.Wis, "Wisdom", Lens.lens (fun x -> x.Wis) (fun v x -> { x with Wis = v })
+  StatId.Cha, "Charisma", Lens.lens (fun x -> x.Cha) (fun v x -> { x with Cha = v })
+]
+
+type StatBlock = {
+    Name : string
+    Stats: StatArray
     HP: int
   }
   with
   static member Empty = {
     Name = "Unnamed"
-    Str = 10
-    Dex = 10
-    Con = 10
-    Int = 10
-    Wis = 10
-    Cha = 10
+    Stats =
+      {
+      Str = 10
+      Dex = 10
+      Con = 10
+      Int = 10
+      Wis = 10
+      Cha = 10
+      }
     HP = 1
   }
 
+type State = {
+  Current: int option
+  Party: StatBlock list
+}
+
+
 module Prop =
-  let Str = Lens.lens (fun x -> x.Str) (fun v x -> { x with Str = v })
+  let Current = Lens.lens
+                  (function { Current = Some(v); Party = P } -> Some P.[v] | { Current = None } -> None)
+                  (fun v state  -> match v, state with
+                                | Some(v), { Current = Some(ix); Party = P } -> { state with Party = P |> List.mapi (fun i v' -> if i = ix then v else v') }
+                                | Some(v), _ -> { state with Current = Some 0; Party = [v] }
+                                | _ -> state)
+  let OptionLens = Lens.lens (function Some(v) -> v | None -> None) (fun v state -> Some v)
+  let StatArray = Lens.lens (function { Stats = stats } -> stats) (fun v state -> { state with Stats = v })
+  let getStat id =
+    match statData |> List.tryFind (function (id', _, _) when id = id' -> true | _ -> false) with
+    | Some(_, _, lens) -> Lens.view (Current >> OptionLens >> StatArray >> lens)
   let Dex = Lens.lens (fun x -> x.Dex) (fun v x -> { x with Dex = v })
   let Con = Lens.lens (fun x -> x.Con) (fun v x -> { x with Con = v })
   let Int = Lens.lens (fun x -> x.Int) (fun v x -> { x with Int = v })
@@ -83,13 +116,13 @@ type IO<'t> =
   }
 
 type StatBank(roll) =
-  let mutable state = State.Empty
+  let mutable state = StatBlock.Empty
   member val UpdateStatus = (fun (str: string) -> ()) with get, set
   member val IO = { save = (fun _ _ -> failwith "Not supported"); load = (fun _ -> failwith "Not supported") } with get, set
   member this.Execute(cmd: Command) =
     let update state =
       match cmd with
-      | NewContext -> State.Empty
+      | NewContext -> StatBlock.Empty
       | SetName v -> { state with Name = v }
       | RollStats ->
         {

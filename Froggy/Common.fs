@@ -18,3 +18,4 @@ module Lens =
   let set l b = over l <| fun _ -> b
   let lens get set = fun f s ->
     (get s |> f : Option<_>) |> Option.map (fun f -> set f s)
+

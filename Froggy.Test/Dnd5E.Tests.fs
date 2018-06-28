@@ -27,8 +27,15 @@ let UsageTest() =
   Assert.Contains ("Int 15", !output)
   Assert.Contains ("Wis 17", !output)
   Assert.Contains ("Cha 14", !output)
-  let mutable jsonFile = State.Empty
-  ctx.IO <- { save = (fun _ data -> jsonFile <- data); load = (fun fileName -> if fileName = "Mary Sue" then Some ({State.Empty with Name = "Mary Sue"; Str = 18; Dex = 18; Con = 18; Int = 18; Wis = 18; Cha = 22}) else None) }
+  proc "swap dex int; swap con ch; swap w intelligence"
+  Assert.Contains ("Str 12", !output)
+  Assert.Contains ("Dex 15", !output)
+  Assert.Contains ("Con 14", !output)
+  Assert.Contains ("Int 17", !output)
+  Assert.Contains ("Wis 13", !output)
+  Assert.Contains ("Cha 16", !output)
+  let mutable jsonFile = StatBlock.Empty
+  ctx.IO <- { save = (fun _ data -> jsonFile <- data); load = (fun fileName -> if fileName = "Mary Sue" then Some ({StatBlock.Empty with Name = "Mary Sue"; Str = 18; Dex = 18; Con = 18; Int = 18; Wis = 18; Cha = 22}) else None) }
   proc "save"
   Assert.Equal("Mengar the Magnificent", jsonFile.Name)
   Assert.Equal(12, jsonFile.Str)
@@ -40,7 +47,6 @@ let UsageTest() =
   Assert.Contains ("Int 18", !output)
   Assert.Contains ("Wis 18", !output)
   Assert.Contains ("Cha 22", !output)
-
 
 
 [<Fact(DisplayName="Usage tests: verify corner cases for parse commands")>]
@@ -78,7 +84,7 @@ let CornerCasees() =
   proc "name Bob; assign 2 2 2 1 2 2"
   Assert.Contains("Name: Bob\n", !output)
   Assert.Contains("Int 17", !output)
-  ctx.IO <- { save = (fun _ _ -> ()); load = (fun fileName -> if fileName = "Mary Sue" then Some ({State.Empty with Name = "Mary Sue"; Str = 18; Dex = 18; Con = 18; Int = 18; Wis = 18; Cha = 22}) else None) }
+  ctx.IO <- { save = (fun _ _ -> ()); load = (fun fileName -> if fileName = "Mary Sue" then Some ({StatBlock.Empty with Name = "Mary Sue"; Str = 18; Dex = 18; Con = 18; Int = 18; Wis = 18; Cha = 22}) else None) }
   Assert.Contains("Name: Bob", !output)
   proc "load Hedwig"
   Assert.Contains("Name: Bob", !output)
