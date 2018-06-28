@@ -96,14 +96,15 @@ module Prop =
                                 | _ -> state)
   let OptionLens = Lens.lens (function Some(v) -> v | None -> None) (fun v state -> Some v)
   let StatArray = Lens.lens (function { Stats = stats } -> stats) (fun v state -> { state with Stats = v })
-  let getStat id =
-    match statData |> List.tryFind (function (id', _, _) when id = id' -> true | _ -> false) with
-    | Some(_, _, lens) -> Lens.view (Current >> OptionLens >> StatArray >> lens)
-  let Dex = Lens.lens (fun x -> x.Dex) (fun v x -> { x with Dex = v })
-  let Con = Lens.lens (fun x -> x.Con) (fun v x -> { x with Con = v })
-  let Int = Lens.lens (fun x -> x.Int) (fun v x -> { x with Int = v })
-  let Wis = Lens.lens (fun x -> x.Wis) (fun v x -> { x with Wis = v })
-  let Cha = Lens.lens (fun x -> x.Cha) (fun v x -> { x with Cha = v })
+  let getStat id state =
+    match statData |> List.find (function (id', _, _) when id = id' -> true | _ -> false) with
+    | (_, _, lens) -> Lens.view Current state |> Option.map (fun sb -> sb.Stats |> Lens.view lens)
+  let Str = getStat Str
+  let Dex = getStat Dex
+  let Con = getStat Con
+  let Int = getStat Int
+  let Wis = getStat Wis
+  let Cha = getStat Cha
   let StatsInOrder = [Str;Dex;Con;Int;Wis;Cha]
 
 let view state =
