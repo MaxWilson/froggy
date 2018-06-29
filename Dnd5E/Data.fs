@@ -46,7 +46,7 @@ type StatBlock = {
       Wis = 10
       Cha = 10
       }
-    Race = ("None",[])
+    Race = ("",[])
     HP = 1
   }
 
