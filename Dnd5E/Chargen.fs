@@ -34,7 +34,7 @@ module Grammar =
 
   let commaAllowed = (alphanumeric + Set<_>[' '; ','])
 
-  let (|Stat|_|) = function
+  let (|Stat|_|) = pack <| function
     | Word(v, rest) ->
       match statData |> List.filter (fun (_, stringRep, _) -> stringRep.StartsWith(v, System.StringComparison.InvariantCultureIgnoreCase)) with
       | [(statId, _, _)] -> Some(statId, rest)
@@ -43,8 +43,12 @@ module Grammar =
 
   let (|Race|_|) =
     let race (name, mods) =
-      Some { RaceData.Name = name; Mods = mods |> List.map (fun (id, bonus) -> { StatMod.Stat = id; Bonus = bonus })}
+      Some { RaceData.Name = name; Trait = None; Mods = mods |> List.map (fun (id, bonus) -> { StatMod.Stat = id; Bonus = bonus })}
+    let raceTrait (name, mods, traitName) =
+      Some { RaceData.Name = name; Trait = Some traitName; Mods = mods |> List.map (fun (id, bonus) -> { StatMod.Stat = id; Bonus = bonus })}
     pack <| function
+    | Str "human" (Stat(s1, Stat(s2, Words(traitName, rest)))) -> Some(raceTrait("VHuman", [s1, +1; s2, +1], traitName), rest)
+    | Str "human" (Words(traitName, Stat(s1, Stat(s2, rest)))) -> Some(raceTrait("VHuman", [s1, +1; s2, +1], traitName), rest)
     | Str "human" (Stat(s1, Stat(s2, rest))) -> Some(race("VHuman", [s1, +1; s2, +1]), rest)
     | Str "human" rest -> Some(race("Human", statData |> List.map (fun (id, _, _) -> id, +1)), rest)
     | Str "wood elf" rest -> Some(race("Wood elf", [Dex, +2; Wis, +1]), rest)
@@ -62,7 +66,7 @@ module Grammar =
     | Str "save" rest -> Some(Save None, rest)
     | Str "load" (Words(fileName, rest)) -> Some(Load fileName, rest)
     | Word (AnyCase("swap" | "sw"), (Stat(s1, Stat(s2, rest)))) -> Some(SwapStats(s1, s2), rest)
-    | Str "race" (WS(Race(race, rest))) -> Some(SetRace race, rest)
+    | (Race(race, rest)) -> Some(SetRace race, rest)
     | _ -> None
 
   let rec (|Commands|_|) = pack <| function
@@ -107,8 +111,20 @@ module View =
 
 let view (state: State) =
   let statBlock = Lens.view Current state
-  let stats = statData |> List.map (fun (id, stringRep, _) -> sprintf "%s %d" (stringRep.Substring(0,3)) (statBlock |> View.statView id)) |> fun x -> System.String.Join(", ", x)
-  sprintf "Name: %s\n%s\n%s" (Lens.view Prop.Current state).Name (match statBlock.Race with Some(r) -> r.Name | None -> "") stats
+  let stats =
+    statData
+    |> List.map (fun (id, stringRep, _) -> sprintf "%s %d" (stringRep.Substring(0,3)) (statBlock |> View.statView id))
+    |> String.join ", "
+  [
+    (sprintf "Name: %s" (Lens.view Prop.Current state).Name)
+    (match statBlock.Race with
+      | Some({ Name = name; Trait = Some(traitName) }) -> sprintf "%s [%s]" name traitName
+      | Some(r) -> r.Name
+      | None -> emptyString)
+    stats
+  ]
+  |> List.filter ((<>) emptyString)
+  |> String.join "\n"
 
 type IO<'t> =
   {

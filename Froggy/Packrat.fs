@@ -141,12 +141,16 @@ let (|Int|_|) = function
     | _ -> None
   | _ -> None
 
-let (|Words|_|) =
-  let set = (alphanumeric |> Set.add ' ')
-  function
-  | OWS(Chars set (words, OWS(rest))) -> Some(words, rest)
-  | _ -> None
-
 let (|Word|_|) = function
   | OWS(Chars alphanumeric (v, OWS rest)) -> Some(v, rest)
   | _ -> None
+
+let rec (|Words|_|) =
+  pack <| function
+  | Words(_, Word(_, ((_, endix) as rest))) & (ctx, ix) ->
+    // instead of just accepting the output from Word, we'll re-derive and trim it in order to preserve the interior whitespace
+    let txt = ctx.input.Substring(ix, (endix - ix)).Trim()
+    Some(txt, rest)
+  | Word(w, rest) -> Some(w, rest)
+  | _ -> None
+

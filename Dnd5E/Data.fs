@@ -27,7 +27,7 @@ type StatArray = {
   }
 
 type StatMod = { Stat: StatId; Bonus: int }
-type RaceData = { Name: string; Mods: StatMod list }
+type RaceData = { Name: string; Mods: StatMod list; Trait: string option }
 
 type StatBlock = {
     Name : string

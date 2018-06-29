@@ -19,3 +19,7 @@ module Lens =
   let lens get set = fun f s ->
     (get s |> f : Option<_>) |> Option.map (fun f -> set f s)
 
+
+let emptyString = System.String.Empty
+module String =
+  let join delimiter strings = System.String.Join((delimiter: string), (strings: string seq))

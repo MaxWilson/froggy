@@ -11,7 +11,10 @@ let UsageTest() =
   let output = ref ""
   let mutable i = 11
   let ctx = StatBank((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
-  let proc cmd = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse |> List.iter ctx.Execute
+  let proc cmd =
+    let cmds = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse
+    Assert.NotEmpty(cmds)
+    ctx.Execute cmds
   proc "name Mengar the Magnificent"
   Assert.Contains("Name: Mengar the Magnificent", !output)
   proc "roll"
@@ -48,15 +51,15 @@ let UsageTest() =
   Assert.Contains ("Int 18", !output)
   Assert.Contains ("Wis 18", !output)
   Assert.Contains ("Cha 22", !output)
-  proc "race human"
+  proc "human"
   Assert.Contains("Human", !output)
   Assert.Contains ("Str 19", !output)
   Assert.Contains ("Dex 19", !output)
   Assert.Contains ("Con 19", !output)
   Assert.Contains ("Int 19", !output)
   Assert.Contains ("Wis 19", !output)
-  Assert.Contains ("Cha 22", !output) // race bonuses can't raise total above 20
-  proc "race wood elf"
+  Assert.Contains ("Cha 22", !output) // bonuses can't raise total above 20
+  proc "wood elf"
   Assert.Contains("Wood elf", !output)
   Assert.Contains ("Str 18", !output)
   Assert.Contains ("Dex 20", !output)
@@ -64,14 +67,17 @@ let UsageTest() =
   Assert.Contains ("Int 18", !output)
   Assert.Contains ("Wis 19", !output)
   Assert.Contains ("Cha 22", !output)
-  proc "race human str dex"
+  proc "human str dex Sharpshooter"
   Assert.Contains("VHuman", !output)
   Assert.Contains ("Str 19", !output)
   Assert.Contains ("Dex 19", !output)
-  Assert.Contains ("Con 18", !output)
-  Assert.Contains ("Int 18", !output)
-  Assert.Contains ("Wis 18", !output)
-  Assert.Contains ("Cha 22", !output)
+  Assert.Contains ("Sharpshooter", !output)
+  proc "human HAM str dex"
+  Assert.Contains("VHuman", !output)
+  Assert.Contains ("Str 19", !output)
+  Assert.Contains ("Dex 19", !output)
+  Assert.Contains ("HAM", !output)
+
 
 
 [<Fact(DisplayName="Usage tests: verify corner cases for parse commands")>]
@@ -79,7 +85,10 @@ let CornerCasees() =
   let output = ref ""
   let mutable i = 11
   let ctx = StatBank((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
-  let proc cmd = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse |> List.iter ctx.Execute
+  let proc cmd =
+    let cmds = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse
+    Assert.NotEmpty(cmds)
+    ctx.Execute cmds
   let failproc cmd =
     let cmds = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse
     Assert.Empty(cmds)
@@ -88,7 +97,7 @@ let CornerCasees() =
   Assert.Contains("Name: Unnamed", !output)
   proc "name     Uncanny John, eater of fish  " // deliberate extraneous whitespace and commas
   Assert.Contains("Name: Uncanny John, eater of fish", !output)
-  proc "namebob" // not a valid name, should change nothing
+  failproc "namebob" // not a valid name, should change nothing
   Assert.Contains("Name: Uncanny John, eater of fish", !output)
   proc "roll"
   failproc "assign 6 4 2 3 1" // invalid assignment (wrong number of stats) should change nothing except potentially outputting a parse error
