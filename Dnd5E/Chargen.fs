@@ -48,7 +48,6 @@ module Grammar =
       Some { RaceData.Name = name; Trait = Some traitName; Mods = mods |> List.map (fun (id, bonus) -> { StatMod.Stat = id; Bonus = bonus })}
     pack <| function
     | Str "human" (Stat(s1, Stat(s2, Words(traitName, rest)))) -> Some(raceTrait("VHuman", [s1, +1; s2, +1], traitName), rest)
-    | Str "human" (Words(traitName, Stat(s1, Stat(s2, rest)))) -> Some(raceTrait("VHuman", [s1, +1; s2, +1], traitName), rest)
     | Str "human" (Stat(s1, Stat(s2, rest))) -> Some(race("VHuman", [s1, +1; s2, +1]), rest)
     | Str "human" rest -> Some(race("Human", statData |> List.map (fun (id, _, _) -> id, +1)), rest)
     | Str "wood elf" rest -> Some(race("Wood elf", [Dex, +2; Wis, +1]), rest)

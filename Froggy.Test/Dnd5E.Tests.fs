@@ -72,11 +72,6 @@ let UsageTest() =
   Assert.Contains ("Str 19", !output)
   Assert.Contains ("Dex 19", !output)
   Assert.Contains ("Sharpshooter", !output)
-  proc "human HAM str dex"
-  Assert.Contains("VHuman", !output)
-  Assert.Contains ("Str 19", !output)
-  Assert.Contains ("Dex 19", !output)
-  Assert.Contains ("HAM", !output)
 
 
 
@@ -130,3 +125,8 @@ let CornerCasees() =
   Assert.Contains ("Int 18", !output)
   Assert.Contains ("Wis 18", !output)
   Assert.Contains ("Cha 22", !output)
+  proc "human str dex HAM"
+  Assert.Contains("VHuman", !output)
+  Assert.Contains ("Str 19", !output)
+  Assert.Contains ("Dex 19", !output)
+  Assert.Contains ("HAM", !output)
