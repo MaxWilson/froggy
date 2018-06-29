@@ -51,29 +51,18 @@ let UsageTest() =
   Assert.Contains ("Int 18", !output)
   Assert.Contains ("Wis 18", !output)
   Assert.Contains ("Cha 22", !output)
-  proc "human"
-  Assert.Contains("Human", !output)
-  Assert.Contains ("Str 19", !output)
-  Assert.Contains ("Dex 19", !output)
-  Assert.Contains ("Con 19", !output)
-  Assert.Contains ("Int 19", !output)
-  Assert.Contains ("Wis 19", !output)
-  Assert.Contains ("Cha 22", !output) // bonuses can't raise total above 20
-  proc "wood elf"
-  Assert.Contains("Wood elf", !output)
-  Assert.Contains ("Str 18", !output)
-  Assert.Contains ("Dex 20", !output)
-  Assert.Contains ("Con 18", !output)
-  Assert.Contains ("Int 18", !output)
-  Assert.Contains ("Wis 19", !output)
-  Assert.Contains ("Cha 22", !output)
-  proc "human str dex Sharpshooter"
+  proc "human str dex GWM"
   Assert.Contains("VHuman", !output)
   Assert.Contains ("Str 19", !output)
   Assert.Contains ("Dex 19", !output)
-  Assert.Contains ("Sharpshooter", !output)
-
-
+  Assert.Contains ("GWM", !output)
+  proc "fighter 5; wizard 5"
+  proc "XP 14024"
+  Assert.Contains ("Level 6", !output)
+  Assert.Contains ("Fighter 5", !output)
+  Assert.Contains ("Wizard 1",!output)
+  Assert.Contains ("XP 14024", !output)
+  Assert.Contains ("HP 52", !output)
 
 [<Fact(DisplayName="Usage tests: verify corner cases for parse commands")>]
 let CornerCasees() =
@@ -124,6 +113,22 @@ let CornerCasees() =
   Assert.Contains ("Con 18", !output)
   Assert.Contains ("Int 18", !output)
   Assert.Contains ("Wis 18", !output)
+  Assert.Contains ("Cha 22", !output)
+  proc "human"
+  Assert.Contains("Human", !output)
+  Assert.Contains ("Str 19", !output)
+  Assert.Contains ("Dex 19", !output)
+  Assert.Contains ("Con 19", !output)
+  Assert.Contains ("Int 19", !output)
+  Assert.Contains ("Wis 19", !output)
+  Assert.Contains ("Cha 22", !output) // bonuses can't raise total above 20
+  proc "wood elf"
+  Assert.Contains("Wood elf", !output)
+  Assert.Contains ("Str 18", !output)
+  Assert.Contains ("Dex 20", !output)
+  Assert.Contains ("Con 18", !output)
+  Assert.Contains ("Int 18", !output)
+  Assert.Contains ("Wis 19", !output)
   Assert.Contains ("Cha 22", !output)
   proc "human str dex HAM"
   Assert.Contains("VHuman", !output)

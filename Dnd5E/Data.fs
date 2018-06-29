@@ -16,6 +16,7 @@ let rec resolve (r: int -> int) = function
     rolls |> Seq.sumBy (resolve r) |> (+) bonus
 
 type StatId = Str | Dex | Con | Int | Wis | Cha
+type ClassId = Fighter | Wizard
 
 type StatArray = {
     Str: int
@@ -34,6 +35,8 @@ type StatBlock = {
     Stats: StatArray
     HP: int
     Race: RaceData option
+    XP: int
+    Levels: (ClassId * int) list
   }
   with
   static member Empty = {
@@ -49,6 +52,8 @@ type StatBlock = {
       }
     Race = None
     HP = 1
+    XP = 0
+    Levels = []
   }
 
 type State = {
