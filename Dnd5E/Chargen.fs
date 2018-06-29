@@ -45,7 +45,7 @@ module Grammar =
     | Str "human" rest -> Some(("Human", statData |> List.map (fun (id, _, _) -> id, +1)), rest)
     | Str "human" (Stat(s1, Stat(s2, rest))) -> Some(("VHuman", [s1, +1; s2, +1]), rest)
     | Str "wood elf" rest -> Some(("Wood elf", [Dex, +2; Wis, +1]), rest)
-    | Str "half-elf" (Stat(s1, Stat(s2, rest))) when s1 <> Cha && s2 <> Cha -> Some(("Half elf", [s1, +1; s2, +1; Cha, +2]), rest)
+    | Str "half-elf" (Stat(s1, Stat(s2, rest))) when s1 <> Cha && s2 <> Cha -> Some(("Half-elf", [s1, +1; s2, +1; Cha, +2]), rest)
     | _ -> None
 
   let (|Command|_|) = pack <| function
