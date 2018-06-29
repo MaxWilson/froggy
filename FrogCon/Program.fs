@@ -27,13 +27,13 @@ let main argv =
     match ParseContext.Init <| Console.ReadLine() with
     | Word (AnyCase("q" | "quit"), End) -> 0
     | End -> // on ENTER, repeat
-      previousCommands |> List.iter st.Execute
+      st.Execute (previousCommands: _ list)
       commandLoop previousCommands
     | v -> match parse v with
            | [] ->
               printfn "Sorry, come again? (Type 'quit' to quit)"
               commandLoop previousCommands
            | cmds ->
-              cmds |> List.iter st.Execute
+              st.Execute cmds
               commandLoop cmds
   commandLoop []

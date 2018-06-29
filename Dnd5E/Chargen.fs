@@ -59,7 +59,7 @@ module Grammar =
     | Str "save" (Words(fileName, rest)) -> Some(Save (Some fileName), rest)
     | Str "save" rest -> Some(Save None, rest)
     | Str "load" (Words(fileName, rest)) -> Some(Load fileName, rest)
-    | Str "swap" (Stat(s1, Stat(s2, rest))) -> Some(SwapStats(s1, s2), rest)
+    | Word (AnyCase("swap" | "sw"), (Stat(s1, Stat(s2, rest)))) -> Some(SwapStats(s1, s2), rest)
     | _ -> None
 
   let rec (|Commands|_|) = pack <| function
@@ -134,46 +134,48 @@ type StatBank(roll) =
   let mutable state = { State.Empty with Current = Some 0; Party = [StatBlock.Empty] }
   member val UpdateStatus = (fun (str: string) -> ()) with get, set
   member val IO = { save = (fun _ _ -> failwith "Not supported"); load = (fun _ -> failwith "Not supported") } with get, set
-  member this.Execute(cmd: Command) =
-    state <-
-      let hasCurrent = state.Current.IsSome
-      match cmd with
-      | NewContext -> { State.Empty with Current = Some 0; Party = [StatBlock.Empty] }
-      | SetName v when hasCurrent ->
-         state |> Lens.over Prop.Current (fun st -> { st with Name = v })
-      | RollStats when hasCurrent->
-        state |> Lens.over Prop.Current (fun st ->
-          { st with
-              Stats =
-              {
-              Str = roll (RollSpec.SumBestNofM(4,3,6))
-              Dex = roll (RollSpec.SumBestNofM(4,3,6))
-              Con = roll (RollSpec.SumBestNofM(4,3,6))
-              Int = roll (RollSpec.SumBestNofM(4,3,6))
-              Wis = roll (RollSpec.SumBestNofM(4,3,6))
-              Cha = roll (RollSpec.SumBestNofM(4,3,6))
-              }
-          })
-      | AssignStats(order) when hasCurrent ->
-        let statValues = Prop.StatsInOrder |> List.map (flip Lens.view state) |> List.sortDescending
-        let statsByPriority = Prop.StatsInOrder |> List.mapi (fun i prop -> order.[i], prop) |> List.sortBy fst
-        let state = statsByPriority
-                    |> List.mapi (fun i (_, prop) -> i, prop) // now that they're in order of priority, match each one up with a unique statValue index
-                    |> List.fold (fun state (ix, prop) -> state |> Lens.set prop statValues.[ix]) state
-        state
-      | SwapStats(s1, s2) when hasCurrent ->
-        let lenses = [s1;s2] |> List.map statLens
-        let vals = lenses |> List.map (fun l -> Lens.view l state) |> List.rev
-        (vals |> List.zip lenses) |> List.fold (fun st (l, v) -> Lens.set l v st) state
-      | Save(fileName) when hasCurrent ->
-        this.IO.save (defaultArg fileName (Lens.view Current state).Name) (Lens.view Current state)
-        state
-      | Load(fileName) ->
-        match this.IO.load fileName with
-        | Some(newChar) ->
-          Lens.set Current newChar state
-        | None -> state
+  member this.Execute(cmds: Command list) =
+    for cmd in cmds do
+      state <-
+        let hasCurrent = state.Current.IsSome
+        match cmd with
+        | NewContext -> { State.Empty with Current = Some 0; Party = [StatBlock.Empty] }
+        | SetName v when hasCurrent ->
+           state |> Lens.over Prop.Current (fun st -> { st with Name = v })
+        | RollStats when hasCurrent->
+          state |> Lens.over Prop.Current (fun st ->
+            { st with
+                Stats =
+                {
+                Str = roll (RollSpec.SumBestNofM(4,3,6))
+                Dex = roll (RollSpec.SumBestNofM(4,3,6))
+                Con = roll (RollSpec.SumBestNofM(4,3,6))
+                Int = roll (RollSpec.SumBestNofM(4,3,6))
+                Wis = roll (RollSpec.SumBestNofM(4,3,6))
+                Cha = roll (RollSpec.SumBestNofM(4,3,6))
+                }
+            })
+        | AssignStats(order) when hasCurrent ->
+          let statValues = Prop.StatsInOrder |> List.map (flip Lens.view state) |> List.sortDescending
+          let statsByPriority = Prop.StatsInOrder |> List.mapi (fun i prop -> order.[i], prop) |> List.sortBy fst
+          let state = statsByPriority
+                      |> List.mapi (fun i (_, prop) -> i, prop) // now that they're in order of priority, match each one up with a unique statValue index
+                      |> List.fold (fun state (ix, prop) -> state |> Lens.set prop statValues.[ix]) state
+          state
+        | SwapStats(s1, s2) when hasCurrent ->
+          let lenses = [s1;s2] |> List.map statLens
+          let vals = lenses |> List.map (fun l -> Lens.view l state) |> List.rev
+          (vals |> List.zip lenses) |> List.fold (fun st (l, v) -> Lens.set l v st) state
+        | Save(fileName) when hasCurrent ->
+          this.IO.save (defaultArg fileName (Lens.view Current state).Name) (Lens.view Current state)
+          state
+        | Load(fileName) ->
+          match this.IO.load fileName with
+          | Some(newChar) ->
+            Lens.set Current newChar state
+          | None -> state
     view state |> this.UpdateStatus
+  member this.Execute(cmd) = this.Execute [cmd]
   new() =
     let random = System.Random()
     StatBank(resolve <| fun x -> 1 + random.Next(x))
