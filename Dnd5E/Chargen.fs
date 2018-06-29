@@ -11,7 +11,7 @@ module Commands =
     | AssignStats of int list
     | Save of string option
     | Load of string
-    | SetRace of RaceData
+    | SetRace of RaceData option
 open Commands
 open Data
 
@@ -41,11 +41,15 @@ module Grammar =
       | _ -> None
     | _ -> None
 
-  let (|Race|_|) = pack <| function
-    | Str "human" rest -> Some(("Human", statData |> List.map (fun (id, _, _) -> id, +1)), rest)
-    | Str "human" (Stat(s1, Stat(s2, rest))) -> Some(("VHuman", [s1, +1; s2, +1]), rest)
-    | Str "wood elf" rest -> Some(("Wood elf", [Dex, +2; Wis, +1]), rest)
-    | Str "half-elf" (Stat(s1, Stat(s2, rest))) when s1 <> Cha && s2 <> Cha -> Some(("Half-elf", [s1, +1; s2, +1; Cha, +2]), rest)
+  let (|Race|_|) =
+    let race (name, mods) =
+      Some { RaceData.Name = name; Mods = mods |> List.map (fun (id, bonus) -> { StatMod.Stat = id; Bonus = bonus })}
+    pack <| function
+    | Str "human" (Stat(s1, Stat(s2, rest))) -> Some(race("VHuman", [s1, +1; s2, +1]), rest)
+    | Str "human" rest -> Some(race("Human", statData |> List.map (fun (id, _, _) -> id, +1)), rest)
+    | Str "wood elf" rest -> Some(race("Wood elf", [Dex, +2; Wis, +1]), rest)
+    | Str "half-elf" (Stat(s1, Stat(s2, rest))) when s1 <> Cha && s2 <> Cha -> Some(race("Half-elf", [s1, +1; s2, +1; Cha, +2]), rest)
+    | Str "none" rest | Str "N/A" rest -> Some(None, rest)
     | _ -> None
 
   let (|Command|_|) = pack <| function
@@ -96,19 +100,15 @@ module View =
     match statData |> List.find (function (id', _, _) when id = id' -> true | _ -> false) with
     | (_, _, lens) ->
       let v = Lens.view (StatArray << lens) statBlock
-      let mods = snd statBlock.Race |> List.sumBy (fun (id', bonus) -> if id = id' then bonus else 0)
+      let mods = match statBlock.Race with Some(r) -> r.Mods |> List.sumBy (fun m -> if id = m.Stat then m.Bonus else 0) | None -> 0
       match v + mods with
       | total when total > 20 || total < 1 -> v // don't use mods if that would push values out of bounds
       | total -> total
 
 let view (state: State) =
   let statBlock = Lens.view Current state
-  let race =
-    match statBlock.Race with
-    | name, _ ->
-      name
   let stats = statData |> List.map (fun (id, stringRep, _) -> sprintf "%s %d" (stringRep.Substring(0,3)) (statBlock |> View.statView id)) |> fun x -> System.String.Join(", ", x)
-  sprintf "Name: %s\n%s\n%s" (Lens.view Prop.Current state).Name race stats
+  sprintf "Name: %s\n%s\n%s" (Lens.view Prop.Current state).Name (match statBlock.Race with Some(r) -> r.Name | None -> "") stats
 
 type IO<'t> =
   {

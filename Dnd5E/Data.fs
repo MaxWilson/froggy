@@ -26,13 +26,14 @@ type StatArray = {
     Cha: int
   }
 
-type RaceData = (string * (StatId * int) list)
+type StatMod = { Stat: StatId; Bonus: int }
+type RaceData = { Name: string; Mods: StatMod list }
 
 type StatBlock = {
     Name : string
     Stats: StatArray
     HP: int
-    Race: RaceData
+    Race: RaceData option
   }
   with
   static member Empty = {
@@ -46,7 +47,7 @@ type StatBlock = {
       Wis = 10
       Cha = 10
       }
-    Race = ("",[])
+    Race = None
     HP = 1
   }
 
