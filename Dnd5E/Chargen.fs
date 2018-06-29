@@ -82,33 +82,36 @@ type StatBlock = {
   }
 
 type State = {
-  Current: int option
-  Party: StatBlock list
-}
+    Current: int option
+    Party: StatBlock list
+  }
+  with
+  static member Empty = { Current = None; Party = [] }
 
 
 module Prop =
   let Current = Lens.lens
-                  (function { Current = Some(v); Party = P } -> Some P.[v] | { Current = None } -> None)
-                  (fun v state  -> match v, state with
-                                | Some(v), { Current = Some(ix); Party = P } -> { state with Party = P |> List.mapi (fun i v' -> if i = ix then v else v') }
-                                | Some(v), _ -> { state with Current = Some 0; Party = [v] }
-                                | _ -> state)
-  let OptionLens = Lens.lens (function Some(v) -> v | None -> None) (fun v state -> Some v)
+                  (function { Current = Some(v); Party = P } -> P.[v] | { Current = None } -> StatBlock.Empty)
+                  (fun v state  -> match state with
+                                    | { Current = Some(ix); Party = P } -> { state with Party = P |> List.mapi (fun i v' -> if i = ix then v else v') }
+                                    | _ -> { state with Current = Some 0; Party = [v] }
+                                    )
   let StatArray = Lens.lens (function { Stats = stats } -> stats) (fun v state -> { state with Stats = v })
-  let getStat id state =
+  let statLens id =
     match statData |> List.find (function (id', _, _) when id = id' -> true | _ -> false) with
-    | (_, _, lens) -> Lens.view Current state |> Option.map (fun sb -> sb.Stats |> Lens.view lens)
-  let Str = getStat Str
-  let Dex = getStat Dex
-  let Con = getStat Con
-  let Int = getStat Int
-  let Wis = getStat Wis
-  let Cha = getStat Cha
+    | (_, _, lens) -> Current << StatArray << lens
+  let Str = statLens Str
+  let Dex = statLens Dex
+  let Con = statLens Con
+  let Int = statLens Int
+  let Wis = statLens Wis
+  let Cha = statLens Cha
   let StatsInOrder = [Str;Dex;Con;Int;Wis;Cha]
+open Prop
 
-let view state =
-  sprintf "Name: %s\nStr %i Dex %i Con %i Int %i Wis %i Cha %i" state.Name state.Str state.Dex state.Con state.Int state.Wis state.Cha
+let view (state: State) =
+  let stats = statData |> List.map (fun (_, stringRep, lens) -> sprintf "%s %d" (stringRep.Substring(0,3)) (Lens.view (Prop.Current << Prop.StatArray << lens) state)) |> fun x -> System.String.Join(", ", x)
+  sprintf "Name: %s\n%s" (Lens.view Prop.Current state).Name stats
 
 type IO<'t> =
   {
@@ -117,39 +120,43 @@ type IO<'t> =
   }
 
 type StatBank(roll) =
-  let mutable state = StatBlock.Empty
+  let mutable state = { State.Empty with Current = Some 0; Party = [StatBlock.Empty] }
   member val UpdateStatus = (fun (str: string) -> ()) with get, set
   member val IO = { save = (fun _ _ -> failwith "Not supported"); load = (fun _ -> failwith "Not supported") } with get, set
   member this.Execute(cmd: Command) =
-    let update state =
+    state <-
       match cmd with
-      | NewContext -> StatBlock.Empty
-      | SetName v -> { state with Name = v }
-      | RollStats ->
-        {
-          state with
-            Str = roll (RollSpec.SumBestNofM(4,3,6))
-            Dex = roll (RollSpec.SumBestNofM(4,3,6))
-            Con = roll (RollSpec.SumBestNofM(4,3,6))
-            Int = roll (RollSpec.SumBestNofM(4,3,6))
-            Wis = roll (RollSpec.SumBestNofM(4,3,6))
-            Cha = roll (RollSpec.SumBestNofM(4,3,6))
-        }
-      | AssignStats(order) ->
+      | NewContext -> { State.Empty with Current = Some 0; Party = [StatBlock.Empty] }
+      | SetName v when state.Current.IsSome ->
+         state |> Lens.over Prop.Current (fun st -> { st with Name = v })
+      | RollStats when state.Current.IsSome->
+        state |> Lens.over Prop.Current (fun st ->
+          { st with
+              Stats =
+              {
+              Str = roll (RollSpec.SumBestNofM(4,3,6))
+              Dex = roll (RollSpec.SumBestNofM(4,3,6))
+              Con = roll (RollSpec.SumBestNofM(4,3,6))
+              Int = roll (RollSpec.SumBestNofM(4,3,6))
+              Wis = roll (RollSpec.SumBestNofM(4,3,6))
+              Cha = roll (RollSpec.SumBestNofM(4,3,6))
+              }
+          })
+      | AssignStats(order) when state.Current.IsSome ->
         let statValues = Prop.StatsInOrder |> List.map (flip Lens.view state) |> List.sortDescending
         let statsByPriority = Prop.StatsInOrder |> List.mapi (fun i prop -> order.[i], prop) |> List.sortBy fst
         let state = statsByPriority
                     |> List.mapi (fun i (_, prop) -> i, prop) // now that they're in order of priority, match each one up with a unique statValue index
                     |> List.fold (fun state (ix, prop) -> state |> Lens.set prop statValues.[ix]) state
         state
-      | Save(fileName) ->
-        this.IO.save (defaultArg fileName state.Name) state
+      | Save(fileName) when state.Current.IsSome ->
+        this.IO.save (defaultArg fileName (Lens.view Current state).Name) (Lens.view Current state)
         state
       | Load(fileName) ->
         match this.IO.load fileName with
-        | Some(newChar) -> newChar
+        | Some(newChar) ->
+          Lens.set Current newChar state
         | None -> state
-    state <- (update state)
     view state |> this.UpdateStatus
   new() =
     let random = System.Random()

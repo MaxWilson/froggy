@@ -2,7 +2,6 @@
 
 open Xunit
 open Froggy.Packrat
-open Froggy.Dnd5e.CharGen
 
 #nowarn "40" // ignore warnings about recursive active patterns via pack. It's fine in this case.
 [<Fact>]
