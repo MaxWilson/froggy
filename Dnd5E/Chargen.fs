@@ -102,8 +102,13 @@ module View =
       | total -> total
 
 let view (state: State) =
-  let stats = statData |> List.map (fun (id, stringRep, _) -> sprintf "%s %d" (stringRep.Substring(0,3)) (Lens.view Current state |> View.statView id)) |> fun x -> System.String.Join(", ", x)
-  sprintf "Name: %s\n%s" (Lens.view Prop.Current state).Name stats
+  let statBlock = Lens.view Current state
+  let race =
+    match statBlock.Race with
+    | name, _ ->
+      name
+  let stats = statData |> List.map (fun (id, stringRep, _) -> sprintf "%s %d" (stringRep.Substring(0,3)) (statBlock |> View.statView id)) |> fun x -> System.String.Join(", ", x)
+  sprintf "Name: %s\n%s\n%s" (Lens.view Prop.Current state).Name race stats
 
 type IO<'t> =
   {
