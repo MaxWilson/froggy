@@ -4,6 +4,7 @@ open Xunit
 
 open Froggy.Packrat
 open Froggy.Dnd5e.CharGen
+open Froggy.Dnd5e.Data
 
 [<Fact(DisplayName="Usage tests: verify that chargen commands can be parsed correctly")>]
 let UsageTest() =
@@ -46,6 +47,21 @@ let UsageTest() =
   Assert.Contains ("Con 18", !output)
   Assert.Contains ("Int 18", !output)
   Assert.Contains ("Wis 18", !output)
+  Assert.Contains ("Cha 22", !output)
+  proc "race human"
+  Assert.Contains ("Str 19", !output)
+  Assert.Contains ("Dex 19", !output)
+  Assert.Contains ("Con 19", !output)
+  Assert.Contains ("Int 19", !output)
+  Assert.Contains ("Wis 19", !output)
+  Assert.Contains ("Cha 22", !output) // race bonuses can't raise total above 20
+  proc "race wood elf"
+  Assert.Contains("Name: Mary Sue", !output)
+  Assert.Contains ("Str 18", !output)
+  Assert.Contains ("Dex 20", !output)
+  Assert.Contains ("Con 18", !output)
+  Assert.Contains ("Int 18", !output)
+  Assert.Contains ("Wis 19", !output)
   Assert.Contains ("Cha 22", !output)
 
 

@@ -11,6 +11,7 @@ module Commands =
     | AssignStats of int list
     | Save of string option
     | Load of string
+    | SetRace of RaceData
 open Commands
 open Data
 
@@ -40,6 +41,13 @@ module Grammar =
       | _ -> None
     | _ -> None
 
+  let (|Race|_|) = pack <| function
+    | Str "human" rest -> Some(("Human", statData |> List.map (fun (id, _, _) -> id, +1)), rest)
+    | Str "human" (Stat(s1, Stat(s2, rest))) -> Some(("VHuman", [s1, +1; s2, +1]), rest)
+    | Str "wood elf" rest -> Some(("Wood elf", [Dex, +2; Wis, +1]), rest)
+    | Str "half-elf" (Stat(s1, Stat(s2, rest))) when s1 <> Cha && s2 <> Cha -> Some(("Half elf", [s1, +1; s2, +1; Cha, +2]), rest)
+    | _ -> None
+
   let (|Command|_|) = pack <| function
     | Str "new" rest | Str "begin" rest -> Some(NewContext, rest)
     | Str "name" (WS (Chars commaAllowed (name, rest))) -> Some( SetName <| name.Trim(), rest)
@@ -50,6 +58,7 @@ module Grammar =
     | Str "save" rest -> Some(Save None, rest)
     | Str "load" (Words(fileName, rest)) -> Some(Load fileName, rest)
     | Word (AnyCase("swap" | "sw"), (Stat(s1, Stat(s2, rest)))) -> Some(SwapStats(s1, s2), rest)
+    | Str "race" (WS(Race(race, rest))) -> Some(SetRace race, rest)
     | _ -> None
 
   let rec (|Commands|_|) = pack <| function
@@ -82,8 +91,18 @@ module Prop =
   let StatsInOrder = [Str;Dex;Con;Int;Wis;Cha]
 open Prop
 
+module View =
+  let statView id statBlock =
+    match statData |> List.find (function (id', _, _) when id = id' -> true | _ -> false) with
+    | (_, _, lens) ->
+      let v = Lens.view (StatArray << lens) statBlock
+      let mods = snd statBlock.Race |> List.sumBy (fun (id', bonus) -> if id = id' then bonus else 0)
+      match v + mods with
+      | total when total > 20 || total < 1 -> v // don't use mods if that would push values out of bounds
+      | total -> total
+
 let view (state: State) =
-  let stats = statData |> List.map (fun (_, stringRep, lens) -> sprintf "%s %d" (stringRep.Substring(0,3)) (Lens.view (Prop.Current << Prop.StatArray << lens) state)) |> fun x -> System.String.Join(", ", x)
+  let stats = statData |> List.map (fun (id, stringRep, _) -> sprintf "%s %d" (stringRep.Substring(0,3)) (Lens.view Current state |> View.statView id)) |> fun x -> System.String.Join(", ", x)
   sprintf "Name: %s\n%s" (Lens.view Prop.Current state).Name stats
 
 type IO<'t> =
@@ -128,6 +147,11 @@ type StatBank(roll) =
           let lenses = [s1;s2] |> List.map statLens
           let vals = lenses |> List.map (fun l -> Lens.view l state) |> List.rev
           (vals |> List.zip lenses) |> List.fold (fun st (l, v) -> Lens.set l v st) state
+        | SetRace(race) when hasCurrent ->
+          state |> Lens.over Prop.Current (fun st ->
+            { st with
+                Race = race
+            })
         | Save(fileName) when hasCurrent ->
           this.IO.save (defaultArg fileName (Lens.view Current state).Name) (Lens.view Current state)
           state

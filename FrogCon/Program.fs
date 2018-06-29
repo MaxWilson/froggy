@@ -7,10 +7,11 @@ open Froggy.Dnd5e.CharGen
 open System.IO
 open Newtonsoft.Json
 open Froggy.Dnd5e
+open Froggy.Dnd5e.Data
 
 [<EntryPoint>]
 let main argv =
-  let save characterName (data:  StatBlock) =
+  let save characterName (data: StatBlock) =
     use file = File.OpenWrite (characterName + ".txt")
     use writer = new StreamWriter(file)
     writer.WriteLine(JsonConvert.SerializeObject data)

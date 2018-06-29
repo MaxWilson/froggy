@@ -26,11 +26,13 @@ type StatArray = {
     Cha: int
   }
 
+type RaceData = (string * (StatId * int) list)
 
 type StatBlock = {
     Name : string
     Stats: StatArray
     HP: int
+    Race: RaceData
   }
   with
   static member Empty = {
@@ -44,6 +46,7 @@ type StatBlock = {
       Wis = 10
       Cha = 10
       }
+    Race = ("None",[])
     HP = 1
   }
 
