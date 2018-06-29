@@ -114,14 +114,6 @@ let (|Chars|_|) alphabet ((ctx, ix): Input) =
   | endpos when endpos > ix -> Some(ctx.input.Substring(ix, endpos - ix), (ctx, endpos))
   | _ -> None
 
-let (|Word|_|) = (|Chars|_|) alphanumeric
-
-let (|Words|_|) =
-  let set = (alphanumeric |> Set.add ' ')
-  function
-  | Chars set (words, rest) -> Some(words.Trim(), rest)
-  | _ -> None
-
 let (|AnyCase|) (input: string) = input.ToLowerInvariant()
 
 let (|Any|) ((ctx, ix): Input) =
@@ -147,4 +139,14 @@ let (|Int|_|) = function
     match System.Int32.TryParse(v) with
     | true, v -> Some(v, rest)
     | _ -> None
+  | _ -> None
+
+let (|Words|_|) =
+  let set = (alphanumeric |> Set.add ' ')
+  function
+  | OWS(Chars set (words, OWS(rest))) -> Some(words, rest)
+  | _ -> None
+
+let (|Word|_|) = function
+  | OWS(Chars alphanumeric (v, OWS rest)) -> Some(v, rest)
   | _ -> None

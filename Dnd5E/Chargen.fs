@@ -1,48 +1,20 @@
 module Froggy.Dnd5e.CharGen
-open Froggy.Packrat
 open Froggy.Common
+
+type StatId = Str | Dex | Con | Int | Wis | Cha
 
 module Commands =
   type Command =
     | NewContext
     | SetName of string
     | RollStats
+    | SwapStats of StatId * StatId
     | AssignStats of int list
     | Save of string option
     | Load of string
 open Commands
 open Data
 
-let rec (|Ints|_|) = pack <| function
-  | Ints(lst, Int(v, rest)) ->
-    Some(lst @ [v], rest)
-  | Int(v, rest) -> Some([v], rest)
-  | _ -> None
-
-let commaAllowed = (alphanumeric + Set<_>[' '; ','])
-
-let (|Command|_|) = pack <| function
-  | Str "new" rest | Str "begin" rest -> Some(NewContext, rest)
-  | Str "name" (WS (Chars commaAllowed (name, rest))) -> Some( SetName <| name.Trim(), rest)
-  | Words (AnyCase("rollstats" | "roll stats" | "roll"), rest) -> Some(RollStats, rest)
-  | Str "assign" (Ints(stats, rest)) when stats.Length = 6 -> // must be 6 numbers that will be interpreted as priorities for stats, in order
-    Some(AssignStats stats, rest)
-  | Str "save" (WS(Words(fileName, rest))) -> Some(Save (Some fileName), rest)
-  | Str "save" rest -> Some(Save None, rest)
-  | Str "load" (WS(Words(fileName, rest))) -> Some(Load fileName, rest)
-  | _ -> None
-
-let rec (|Commands|_|) = pack <| function
-  | Commands(cmds, Str ";" (OWS(Command(c, rest)))) -> Some(cmds @ [c], rest)
-  | Command(c, rest) -> Some([c], rest)
-  | _ -> None
-
-let parse input =
-  match input with
-  | Commands(cmds, End) -> cmds
-  | _ -> []
-
-type StatId = Str | Dex | Con | Int | Wis | Cha
 type StatArray = {
     Str: int
     Dex: int
@@ -60,6 +32,45 @@ let statData = [
   StatId.Wis, "Wisdom", Lens.lens (fun x -> x.Wis) (fun v x -> { x with Wis = v })
   StatId.Cha, "Charisma", Lens.lens (fun x -> x.Cha) (fun v x -> { x with Cha = v })
 ]
+
+module Grammar =
+  open Froggy.Packrat
+  let rec (|Ints|_|) = pack <| function
+    | Ints(lst, Int(v, rest)) ->
+      Some(lst @ [v], rest)
+    | Int(v, rest) -> Some([v], rest)
+    | _ -> None
+
+  let commaAllowed = (alphanumeric + Set<_>[' '; ','])
+
+  let (|Stat|_|) = function
+    | Word(v, rest) ->
+      match statData |> List.filter (fun (_, stringRep, _) -> stringRep.StartsWith(v, System.StringComparison.InvariantCultureIgnoreCase)) with
+      | [(statId, _, _)] -> Some(statId, rest)
+      | _ -> None
+    | _ -> None
+
+  let (|Command|_|) = pack <| function
+    | Str "new" rest | Str "begin" rest -> Some(NewContext, rest)
+    | Str "name" (WS (Chars commaAllowed (name, rest))) -> Some( SetName <| name.Trim(), rest)
+    | Words (AnyCase("rollstats" | "roll stats" | "roll"), rest) -> Some(RollStats, rest)
+    | Str "assign" (Ints(stats, rest)) when stats.Length = 6 -> // must be 6 numbers that will be interpreted as priorities for stats, in order
+      Some(AssignStats stats, rest)
+    | Str "save" (Words(fileName, rest)) -> Some(Save (Some fileName), rest)
+    | Str "save" rest -> Some(Save None, rest)
+    | Str "load" (Words(fileName, rest)) -> Some(Load fileName, rest)
+    | Str "swap" (Stat(s1, Stat(s2, rest))) -> Some(SwapStats(s1, s2), rest)
+    | _ -> None
+
+  let rec (|Commands|_|) = pack <| function
+    | Commands(cmds, Str ";" (OWS(Command(c, rest)))) -> Some(cmds @ [c], rest)
+    | Command(c, rest) -> Some([c], rest)
+    | _ -> None
+
+let parse input =
+  match input with
+  | Grammar.Commands(cmds, Froggy.Packrat.End) -> cmds
+  | _ -> []
 
 type StatBlock = {
     Name : string
@@ -125,11 +136,12 @@ type StatBank(roll) =
   member val IO = { save = (fun _ _ -> failwith "Not supported"); load = (fun _ -> failwith "Not supported") } with get, set
   member this.Execute(cmd: Command) =
     state <-
+      let hasCurrent = state.Current.IsSome
       match cmd with
       | NewContext -> { State.Empty with Current = Some 0; Party = [StatBlock.Empty] }
-      | SetName v when state.Current.IsSome ->
+      | SetName v when hasCurrent ->
          state |> Lens.over Prop.Current (fun st -> { st with Name = v })
-      | RollStats when state.Current.IsSome->
+      | RollStats when hasCurrent->
         state |> Lens.over Prop.Current (fun st ->
           { st with
               Stats =
@@ -142,14 +154,18 @@ type StatBank(roll) =
               Cha = roll (RollSpec.SumBestNofM(4,3,6))
               }
           })
-      | AssignStats(order) when state.Current.IsSome ->
+      | AssignStats(order) when hasCurrent ->
         let statValues = Prop.StatsInOrder |> List.map (flip Lens.view state) |> List.sortDescending
         let statsByPriority = Prop.StatsInOrder |> List.mapi (fun i prop -> order.[i], prop) |> List.sortBy fst
         let state = statsByPriority
                     |> List.mapi (fun i (_, prop) -> i, prop) // now that they're in order of priority, match each one up with a unique statValue index
                     |> List.fold (fun state (ix, prop) -> state |> Lens.set prop statValues.[ix]) state
         state
-      | Save(fileName) when state.Current.IsSome ->
+      | SwapStats(s1, s2) when hasCurrent ->
+        let lenses = [s1;s2] |> List.map statLens
+        let vals = lenses |> List.map (fun l -> Lens.view l state) |> List.rev
+        (vals |> List.zip lenses) |> List.fold (fun st (l, v) -> Lens.set l v st) state
+      | Save(fileName) when hasCurrent ->
         this.IO.save (defaultArg fileName (Lens.view Current state).Name) (Lens.view Current state)
         state
       | Load(fileName) ->
