@@ -15,6 +15,53 @@ let UsageTest() =
     let cmds = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse
     Assert.NotEmpty(cmds)
     ctx.Execute cmds
+
+  proc "name Mengar the Magnificent"
+  Assert.Contains("Name: Mengar the Magnificent", !output)
+
+  proc "roll"
+  Assert.Contains ("Str 12", !output)
+  Assert.Contains ("Dex 13", !output)
+  Assert.Contains ("Con 14", !output)
+  Assert.Contains ("Int 15", !output)
+  Assert.Contains ("Wis 16", !output)
+  Assert.Contains ("Cha 17", !output)
+
+  proc "assign 6 5 2 3 1 4"
+  Assert.Contains ("Str 12", !output)
+  Assert.Contains ("Dex 13", !output)
+  Assert.Contains ("Con 16", !output)
+  Assert.Contains ("Int 15", !output)
+  Assert.Contains ("Wis 17", !output)
+  Assert.Contains ("Cha 14", !output)
+
+  proc "swap dex wis"
+  Assert.Contains ("Dex 17", !output)
+  Assert.Contains ("Wis 13", !output)
+
+  proc "human int dex Sharpshooter"
+  Assert.Contains("VHuman", !output)
+  Assert.Contains ("Int 16", !output)
+  Assert.Contains ("Dex 18", !output)
+  Assert.Contains ("Sharpshooter", !output)
+
+  proc "fighter 5; wizard 5; fighter 6; XP 14024"
+  Assert.Contains ("Level 6", !output)
+  Assert.Contains ("Fighter 5", !output)
+  Assert.Contains ("Wizard 1",!output)
+  Assert.Contains ("XP 14024", !output)
+  Assert.Contains ("HP 52", !output)
+  Assert.Contains ("[Fighter 1-5; Wizard 1-5; Fighter 6-10]", !output)
+
+[<Fact>]
+let TestSwapAttributes() =
+  let output = ref ""
+  let mutable i = 11
+  let ctx = StatBank((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
+  let proc cmd =
+    let cmds = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse
+    Assert.NotEmpty(cmds)
+    ctx.Execute cmds
   proc "name Mengar the Magnificent"
   Assert.Contains("Name: Mengar the Magnificent", !output)
   proc "roll"
@@ -24,20 +71,32 @@ let UsageTest() =
   Assert.Contains ("Int 15", !output)
   Assert.Contains ("Wis 16", !output)
   Assert.Contains ("Cha 17", !output)
-  proc "assign 6 5 2 3 1 4"
-  Assert.Contains ("Str 12", !output)
-  Assert.Contains ("Dex 13", !output)
-  Assert.Contains ("Con 16", !output)
-  Assert.Contains ("Int 15", !output)
-  Assert.Contains ("Wis 17", !output)
-  Assert.Contains ("Cha 14", !output)
   proc "swap dex int; swap con ch; swap w intelligence"
   Assert.Contains ("Str 12", !output)
   Assert.Contains ("Dex 15", !output)
-  Assert.Contains ("Con 14", !output)
-  Assert.Contains ("Int 17", !output)
+  Assert.Contains ("Con 17", !output)
+  Assert.Contains ("Int 16", !output)
   Assert.Contains ("Wis 13", !output)
-  Assert.Contains ("Cha 16", !output)
+  Assert.Contains ("Cha 14", !output)
+
+[<Fact>]
+let TestSaveLoad() =
+  let output = ref ""
+  let mutable i = 11
+  let ctx = StatBank((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
+  let proc cmd =
+    let cmds = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse
+    Assert.NotEmpty(cmds)
+    ctx.Execute cmds
+  proc "name Mengar the Magnificent"
+  Assert.Contains("Name: Mengar the Magnificent", !output)
+  proc "roll"
+  Assert.Contains ("Str 12", !output)
+  Assert.Contains ("Dex 13", !output)
+  Assert.Contains ("Con 14", !output)
+  Assert.Contains ("Int 15", !output)
+  Assert.Contains ("Wis 16", !output)
+  Assert.Contains ("Cha 17", !output)
   let mutable jsonFile = StatBlock.Empty
   ctx.IO <- { save = (fun _ data -> jsonFile <- data); load = (fun fileName -> if fileName = "Mary Sue" then Some ({StatBlock.Empty with Name = "Mary Sue"; Stats = { Str = 18; Dex = 18; Con = 18; Int = 18; Wis = 18; Cha = 22 }}) else None) }
   proc "save"
@@ -51,18 +110,6 @@ let UsageTest() =
   Assert.Contains ("Int 18", !output)
   Assert.Contains ("Wis 18", !output)
   Assert.Contains ("Cha 22", !output)
-  proc "human str dex GWM"
-  Assert.Contains("VHuman", !output)
-  Assert.Contains ("Str 19", !output)
-  Assert.Contains ("Dex 19", !output)
-  Assert.Contains ("GWM", !output)
-  proc "fighter 5; wizard 5"
-  proc "XP 14024"
-  Assert.Contains ("Level 6", !output)
-  Assert.Contains ("Fighter 5", !output)
-  Assert.Contains ("Wizard 1",!output)
-  Assert.Contains ("XP 14024", !output)
-  Assert.Contains ("HP 52", !output)
 
 [<Fact(DisplayName="Usage tests: verify corner cases for parse commands")>]
 let CornerCasees() =
