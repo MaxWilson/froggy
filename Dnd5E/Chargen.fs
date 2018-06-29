@@ -1,7 +1,6 @@
 module Froggy.Dnd5e.CharGen
 open Froggy.Common
-
-type StatId = Str | Dex | Con | Int | Wis | Cha
+open Froggy.Dnd5e.Data
 
 module Commands =
   type Command =
@@ -14,15 +13,6 @@ module Commands =
     | Load of string
 open Commands
 open Data
-
-type StatArray = {
-    Str: int
-    Dex: int
-    Con: int
-    Int: int
-    Wis: int
-    Cha: int
-  }
 
 let statData = [
   StatId.Str, "Strength", Lens.lens (fun x -> x.Str) (fun v x -> { x with Str = v })
@@ -71,34 +61,6 @@ let parse input =
   match input with
   | Grammar.Commands(cmds, Froggy.Packrat.End) -> cmds
   | _ -> []
-
-type StatBlock = {
-    Name : string
-    Stats: StatArray
-    HP: int
-  }
-  with
-  static member Empty = {
-    Name = "Unnamed"
-    Stats =
-      {
-      Str = 10
-      Dex = 10
-      Con = 10
-      Int = 10
-      Wis = 10
-      Cha = 10
-      }
-    HP = 1
-  }
-
-type State = {
-    Current: int option
-    Party: StatBlock list
-  }
-  with
-  static member Empty = { Current = None; Party = [] }
-
 
 module Prop =
   let Current = Lens.lens
