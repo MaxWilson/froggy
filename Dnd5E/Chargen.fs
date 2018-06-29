@@ -45,6 +45,14 @@ module Grammar =
     let race (name, mods) =
       Some { RaceData.Name = name; Trait = None; Mods = mods |> List.map (fun (id, bonus) -> { StatMod.Stat = id; Bonus = bonus })}
     let raceTrait (name, mods, traitName) =
+      let mods =
+        let bonus =
+          match (traitName : string).ToLowerInvariant() with
+          | "ham" | "heavy armor master" -> Some Str
+          | _ -> None
+        match bonus with
+        | Some(v) -> (v, +1) :: mods
+        | None -> mods
       Some { RaceData.Name = name; Trait = Some traitName; Mods = mods |> List.map (fun (id, bonus) -> { StatMod.Stat = id; Bonus = bonus })}
     pack <| function
     | Str "human" (Stat(s1, Stat(s2, Words(traitName, rest)))) -> Some(raceTrait("VHuman", [s1, +1; s2, +1], traitName), rest)

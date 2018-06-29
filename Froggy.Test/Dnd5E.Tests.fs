@@ -127,6 +127,6 @@ let CornerCasees() =
   Assert.Contains ("Cha 22", !output)
   proc "human str dex HAM"
   Assert.Contains("VHuman", !output)
-  Assert.Contains ("Str 19", !output)
+  Assert.Contains ("Str 20", !output) // should know that HAM comes with a built-in +1
   Assert.Contains ("Dex 19", !output)
   Assert.Contains ("HAM", !output)
