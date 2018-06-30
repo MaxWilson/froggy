@@ -268,11 +268,6 @@ type StatBank(roll) =
                       when className = classLevel.Class
                             && newMaxLevel <= 0 ->
                         (true, accum)
-                    | { Level = l } when (l + (accum |> List.sumBy (fun x -> x.Level))) >= 20 ->
-                      // this case prevents the sum of IntendedLevels from exceeding 20
-                      let prev = (accum |> List.sumBy (fun x -> x.Level))
-                      let newLevel = 20 - prev
-                      (true, { cl' with Level = newLevel } :: accum)
                     | { Class = className; Level = l }
                       when (className = classLevel.Class
                             && l > newMaxLevel) ->
@@ -283,12 +278,29 @@ type StatBank(roll) =
                   |> snd
                   |> List.rev
               else
-                // increase levels if necessary
                 match st.IntendedLevels |> List.rev with
                   | h::rest when h.Class = classLevel.Class ->
                     classLevel :: rest
                   | rest -> classLevel :: rest
                 |> List.rev
+            // cap total levels at 20
+            let lev =
+              lev
+              |> List.mapFold (fun (sums : Map<_, _>) cl' ->
+                      let sum = Seq.sumBy (function KeyValue(_, level) -> level)
+                      if (sum sums) > 20 then
+                        [], sums
+                      else
+                        let sums' = (sums |> Map.add cl'.Class cl'.Level)
+                        if sum sums' <= 20 then
+                          [cl'], sums |> Map.add cl'.Class cl'.Level
+                        else
+                          let cl' = { cl' with Level = cl'.Level - (sum sums' - 20) }
+                          [cl'], sums |> Map.add cl'.Class cl'.Level
+                          ) Map.empty
+              |> fst
+              |> List.concat
+
             { st with
                 IntendedLevels = lev
             })
