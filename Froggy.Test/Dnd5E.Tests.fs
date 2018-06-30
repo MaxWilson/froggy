@@ -102,7 +102,7 @@ let TestClassLevels() =
     let cmds = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse
     Assert.NotEmpty(cmds)
     ctx.Execute cmds
-  proc "fighter 3; wizard 2"
+  proc "fighter 3; wizard 2; xp 6500"
   Assert.Contains ("Fighter 3", !output)
   Assert.Contains ("Wizard 2",!output)
   proc "wizard 0"

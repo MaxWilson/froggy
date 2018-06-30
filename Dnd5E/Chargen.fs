@@ -151,7 +151,7 @@ let recomputeLevelDependentProperties (sb : StatBlock) =
   let levelMax = PCXP.Table |> List.findBack (fun levelReq -> sb.XP >= levelReq.XPRequired) |> fun x -> x.Level
   let x = Con
   let conMod = View.statView Con sb |> combatBonus
-  let actualClassLevels, actualLevels =
+  let actualClassLevels, actualLevelsRev =
     sb.IntendedLevels @ [{ ClassLevel.Class = Fighter; Level = 20}] // default to fighter 20 as goal
     |> List.fold (
       fun (consumed: Map<_, _>, accum: ClassLevel list) classLevel ->
@@ -165,6 +165,7 @@ let recomputeLevelDependentProperties (sb : StatBlock) =
             let classLevel = { classLevel with Level = levelMax - consumption }
             (consumed |> Map.add classLevel.Class classLevel.Level), classLevel :: accum
       ) (Map.empty, [])
+  let actualLevels = actualLevelsRev |> List.rev
   let hp = actualClassLevels |> Seq.sumBy (function KeyValue(Fighter, level) -> level * (6 + conMod) | KeyValue(Wizard, level) -> level * (4 + conMod))
            |> (+) (match actualLevels.Head.Class with | Fighter -> 4 | Wizard -> 2)
   { sb with HP = hp; Levels = actualLevels }
@@ -198,10 +199,9 @@ type StatBank(roll) =
           let statsInOrder = statData |> List.map (fun (_, _, v) -> Current << StatArray << v)
           let statValues = statsInOrder |> List.map (flip Lens.view state) |> List.sortDescending
           let statsByPriority = statsInOrder |> List.mapi (fun i prop -> order.[i], prop) |> List.sortBy fst
-          let state = statsByPriority
-                      |> List.mapi (fun i (_, prop) -> i, prop) // now that they're in order of priority, match each one up with a unique statValue index
-                      |> List.fold (fun state (ix, prop) -> state |> Lens.set prop statValues.[ix]) state
-          state
+          statsByPriority
+          |> List.mapi (fun i (_, prop) -> i, prop) // now that they're in order of priority, match each one up with a unique statValue index
+          |> List.fold (fun state (ix, prop) -> state |> Lens.set prop statValues.[ix]) state
         | SwapStats(s1, s2) when hasCurrent ->
           let lenses = [s1;s2] |> List.map statLens
           let vals = lenses |> List.map (fun l -> Lens.view l state) |> List.rev
@@ -215,7 +215,7 @@ type StatBank(roll) =
           state |> Lens.over Prop.Current (fun st ->
             { st with
                 XP = xp
-            } |> recomputeLevelDependentProperties)
+            })
         | SetClassGoal(classLevel) when hasCurrent ->
           state |> Lens.over Prop.Current (fun st ->
             { st with
@@ -225,7 +225,7 @@ type StatBank(roll) =
                     if classLevel.Level = 0 then rest
                     else classLevel :: rest |> List.rev
                   | lst -> classLevel :: lst |> List.rev
-            } |> recomputeLevelDependentProperties)
+            })
         | Save(fileName) when hasCurrent ->
           this.IO.save (defaultArg fileName (Lens.view Current state).Name) (Lens.view Current state)
           state
@@ -234,6 +234,7 @@ type StatBank(roll) =
           | Some(newChar) ->
             Lens.set Current newChar state
           | None -> state
+    state <- state |> Lens.over Prop.Current (recomputeLevelDependentProperties)
     view state |> this.UpdateStatus
   member this.Execute(cmd) = this.Execute [cmd]
   new() =
