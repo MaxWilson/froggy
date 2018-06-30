@@ -83,7 +83,7 @@ module Grammar =
     | Word (AnyCase("swap" | "sw"), (Stat(s1, Stat(s2, rest)))) -> Some(SwapStats(s1, s2), rest)
     | Race(race, rest) -> Some(SetRace race, rest)
     | ClassGoal(classLevel, rest) -> Some(SetClassGoal(classLevel), rest)
-    | Int(xp, Word(AnyCase("xp"), rest)) | Int(xp, Word(AnyCase("xp"), rest)) -> Some(SetXP xp, rest)
+    | Int(xp, Word(AnyCase("xp"), rest)) | Word(AnyCase("xp"), (Int(xp, rest))) -> Some(SetXP xp, rest)
     | _ -> None
 
   let rec (|Commands|_|) = pack <| function
@@ -156,10 +156,9 @@ let recomputeLevelDependentProperties (sb : StatBlock) =
     |> List.fold (
       fun (consumed: Map<_, _>, accum: ClassLevel list) classLevel ->
         let consumption = consumed |> Seq.sumBy(function KeyValue(_, v) -> v)
-        if consumption > levelMax then (consumed, accum)
+        if consumption >= levelMax then (consumed, accum)
         else
           let consuming = classLevel.Level - (match consumed |> Map.tryFind classLevel.Class with Some(prevLevel) -> prevLevel | _ -> 0)
-
           if consumption + consuming <= levelMax then
             (consumed |> Map.add classLevel.Class classLevel.Level), (classLevel :: accum)
           else // consume as much as possible
@@ -216,7 +215,7 @@ type StatBank(roll) =
           state |> Lens.over Prop.Current (fun st ->
             { st with
                 XP = xp
-            })
+            } |> recomputeLevelDependentProperties)
         | SetClassGoal(classLevel) when hasCurrent ->
           state |> Lens.over Prop.Current (fun st ->
             { st with
@@ -224,8 +223,8 @@ type StatBank(roll) =
                   match st.IntendedLevels |> List.rev with
                   | h::rest when h.Class = classLevel.Class ->
                     if classLevel.Level = 0 then rest
-                    else classLevel :: rest
-                  | lst -> classLevel :: lst
+                    else classLevel :: rest |> List.rev
+                  | lst -> classLevel :: lst |> List.rev
             } |> recomputeLevelDependentProperties)
         | Save(fileName) when hasCurrent ->
           this.IO.save (defaultArg fileName (Lens.view Current state).Name) (Lens.view Current state)
