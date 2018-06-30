@@ -8,7 +8,7 @@
     <ProjectGuid>f508d1a3-7c54-4223-ac86-fd6ae7e99582</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>FrogCon</RootNamespace>
-    <AssemblyName>FrogCon</AssemblyName>
+    <AssemblyName>Frog</AssemblyName>
     <TargetFrameworkVersion>v4.7.1</TargetFrameworkVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <UseStandardResourceNames>true</UseStandardResourceNames>
