@@ -59,13 +59,12 @@ let UsageTest() =
   Assert.Contains ("Dex 18", !output)
   Assert.Contains ("Sharpshooter", !output)
 
-  proc "fighter 5; wizard 5; fighter 6; XP 14024"
-  Assert.Contains ("Level 6", !output)
+  proc "fighter 5; wizard 5; fighter 16; XP 14024"
   Assert.Contains ("Fighter 5", !output)
   Assert.Contains ("Wizard 1",!output)
   Assert.Contains ("XP 14024", !output)
-  Assert.Contains ("HP 52", !output)
-  Assert.Contains ("[Fighter 1-5; Wizard 1-5; Fighter 6-10]", !output)
+  Assert.Contains ("HP 56", !output)
+  Assert.Contains ("[Fighter 1-5; Wizard 1-5; Fighter 6-15]", !output)
 
 [<Fact>]
 let TestSwapAttributes() =
@@ -106,9 +105,9 @@ let TestClassLevels() =
   Assert.Contains ("Fighter 3", !output)
   Assert.Contains ("Wizard 2",!output)
   proc "wizard 0"
-  Assert.Contains ("Fighter 3", !output)
+  Assert.Contains ("Fighter 5", !output)
   Assert.DoesNotContain ("Wizard",!output, StringComparison.InvariantCultureIgnoreCase)
-  proc "wizard 2; fighter 0"
+  proc "thief 3; wizard 2; fighter 0"
   Assert.Contains ("Wizard 2", !output)
   Assert.DoesNotContain ("Fighter",!output, StringComparison.InvariantCultureIgnoreCase)
 
