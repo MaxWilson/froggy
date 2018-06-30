@@ -16,13 +16,16 @@ let rec resolve (r: int -> int) = function
     rolls |> Seq.sumBy (resolve r) |> (+) bonus
 
 type StatId = Str | Dex | Con | Int | Wis | Cha
-type ClassId = Fighter | Wizard | Thief
+type ClassId = Fighter | Wizard | Thief | Barbarian | Warlock | Druid
 
 let classData = [
   // ClassId, string rep, average HP
   Fighter, "Fighter", 6
   Wizard, "Wizard", 4
   Thief, "Thief", 5
+  Barbarian, "Barbarian", 7
+  Warlock, "Warlock", 5
+  Druid, "Druid", 5
   ]
 
 type StatArray = {
