@@ -121,35 +121,6 @@ module View =
       | total when total > 20 || total < 1 -> v // don't use mods if that would push values out of bounds
       | total -> total
 
-let view (state: State) =
-  let statBlock = Lens.view Current state
-  let stats =
-    (statData
-    |> List.map (fun (id, stringRep, _) -> sprintf "%s %d" (stringRep.Substring(0,3)) (statBlock |> View.statView id)))
-    @ [sprintf "HP %i XP %i" statBlock.HP statBlock.XP]
-    |> String.join ", "
-  [
-    (sprintf "Name: %s" (Lens.view Prop.Current state).Name)
-    [
-      statBlock.Levels |> List.map (fun classLevel -> sprintf "%A %i" classLevel.Class classLevel.Level)
-      (match statBlock.Race with
-          | Some({ Name = name; Trait = Some(traitName) }) -> [(sprintf "%s [%s]" name traitName)]
-          | Some(r) -> [r.Name]
-          | None -> [])
-      ]
-      |> List.concat
-      |> String.join " "
-    stats
-  ]
-  |> List.filter ((<>) emptyString)
-  |> String.join "\n"
-
-type IO<'t> =
-  {
-    save: string -> 't -> unit
-    load: string -> 't option
-  }
-
 let recomputeLevelDependentProperties (sb : StatBlock) =
   let levelMax = PCXP.Table |> List.findBack (fun levelReq -> sb.XP >= levelReq.XPRequired) |> fun x -> x.Level
   let x = Con
@@ -191,6 +162,47 @@ let recomputeLevelDependentProperties (sb : StatBlock) =
                   |> List.ofSeq
     }
   retval
+
+let view (state: State) =
+  let statBlock = Lens.view Current state
+  let classToString (cl:ClassLevel) =
+    classData |> List.find (fun (id, _, _) -> id = cl.Class) |> fun (_, stringRep, _) -> stringRep
+  let stats =
+    (statData
+    |> List.map (fun (id, stringRep, _) -> sprintf "%s %d" (stringRep.Substring(0,3)) (statBlock |> View.statView id)))
+    @ [sprintf "HP %i XP %i" statBlock.HP statBlock.XP]
+    |> String.join ", "
+  [
+    (sprintf "Name: %s" (Lens.view Prop.Current state).Name)
+    [
+      (match statBlock.Race with
+          | Some({ Name = name; Trait = Some(traitName) }) -> [(sprintf "%s [%s]" name traitName)]
+          | Some(r) -> [r.Name]
+          | None -> [])
+      statBlock.Levels |> List.map (fun classLevel -> sprintf "%s %i" (classToString classLevel) classLevel.Level)
+      [statBlock.IntendedLevels
+        |> List.map (fun classLevel ->
+            // Order N^2 rendering operation, but should be okay. Look up any other classLevels that are strictly less.
+            match statBlock.IntendedLevels |> List.filter (fun cl' -> cl'.Class = classLevel.Class && cl'.Level < classLevel.Level) with
+            | cl'::_ ->
+              sprintf "%s %i-%i" (classToString cl') (cl'.Level + 1) (classLevel.Level)
+            | _ ->
+              sprintf "%s 1-%i" (classToString classLevel) (classLevel.Level)
+          )
+        |> String.join "; " |> sprintf "[%s]"]
+      ]
+      |> List.concat
+      |> String.join " "
+    stats
+  ]
+  |> List.filter ((<>) emptyString)
+  |> String.join "\n"
+
+type IO<'t> =
+  {
+    save: string -> 't -> unit
+    load: string -> 't option
+  }
 
 type StatBank(roll) =
   let mutable state = { State.Empty with Current = Some 0; Party = [StatBlock.Empty] }
@@ -250,16 +262,20 @@ type StatBank(roll) =
               let newMaxLevel = classLevel.Level
               if newMaxLevel < currentMaxLevel then
                 // delete now-redundant levels
-                st.IntendedLevels |> List.fold (fun (alreadyAtMax, accum) cl' ->
+                st.IntendedLevels |> List.fold (fun (alreadyAtMax, accum: ClassLevel list) cl' ->
                     match cl' with
                     | { Class = className; Level = l }
                       when className = classLevel.Class
                             && newMaxLevel <= 0 ->
-                        // trim or delete, depending on whether or not there is a previous entry
                         (true, accum)
+                    | { Level = l } when (l + (accum |> List.sumBy (fun x -> x.Level))) >= 20 ->
+                      // this case prevents the sum of IntendedLevels from exceeding 20
+                      let prev = (accum |> List.sumBy (fun x -> x.Level))
+                      let newLevel = 20 - prev
+                      (true, { cl' with Level = newLevel } :: accum)
                     | { Class = className; Level = l }
-                      when className = classLevel.Class
-                            && l > newMaxLevel ->
+                      when (className = classLevel.Class
+                            && l > newMaxLevel) ->
                         // trim or delete, depending on whether or not there is a previous entry
                         (true, if alreadyAtMax then accum else { cl' with Level = newMaxLevel }::accum)
                     | v -> (alreadyAtMax, cl'::accum)

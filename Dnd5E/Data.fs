@@ -20,9 +20,9 @@ type ClassId = Fighter | Wizard | Thief
 
 let classData = [
   // ClassId, string rep, average HP
-  Fighter, "fighter", 6
-  Wizard, "wizard", 4
-  Thief, "thief", 5
+  Fighter, "Fighter", 6
+  Wizard, "Wizard", 4
+  Thief, "Thief", 5
   ]
 
 type StatArray = {
