@@ -141,7 +141,7 @@ let (|Int|_|) = function
     | _ -> None
   | _ -> None
 
-let (|Word|_|) = function
+let (|Word|_|) = pack <| function
   | OWS(Chars alphanumeric (v, OWS rest)) -> Some(v, rest)
   | _ -> None
 

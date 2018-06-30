@@ -30,13 +30,16 @@ type StatArray = {
 type StatMod = { Stat: StatId; Bonus: int }
 type RaceData = { Name: string; Mods: StatMod list; Trait: string option }
 
+type ClassLevel = { Class: ClassId; Level: int }
+
 type StatBlock = {
     Name : string
     Stats: StatArray
     HP: int
     Race: RaceData option
     XP: int
-    Levels: (ClassId * int) list
+    Levels: ClassLevel list
+    IntendedLevels: ClassLevel list
   }
   with
   static member Empty = {
@@ -54,6 +57,7 @@ type StatBlock = {
     HP = 1
     XP = 0
     Levels = []
+    IntendedLevels = []
   }
 
 type State = {
@@ -63,3 +67,35 @@ type State = {
   with
   static member Empty = { Current = None; Party = [] }
 
+type PCXP = { Level: int; XPRequired: int }
+  with
+  static member Table =
+    [
+      // level, XP required, daily XP budget, easy, medium, hard, deadly
+      0, 0
+      1, 0
+      2, 300
+      3, 900
+      4, 2700
+      5, 6500
+      6, 14000
+      7, 23000
+      8, 34000
+      9, 48000
+      10, 64000
+      11, 85000
+      12, 100000
+      13, 120000
+      14, 140000
+      15, 165000
+      16, 195000
+      17, 225000
+      18, 265000
+      19, 305000
+      20, 355000
+      ] |> List.map (fun (level, xp) -> { Level = level; XPRequired = xp })
+
+let combatBonus statVal =
+  (statVal/2) - 5
+let skillBonus statVal =
+  ((statVal+1)/2) - 5

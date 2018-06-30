@@ -12,6 +12,8 @@ module Commands =
     | Save of string option
     | Load of string
     | SetRace of RaceData option
+    | SetXP of int
+    | SetClassGoal of ClassLevel
 open Commands
 open Data
 
@@ -63,6 +65,12 @@ module Grammar =
     | Str "none" rest | Str "N/A" rest -> Some(None, rest)
     | _ -> None
 
+  let (|ClassGoal|_|) =
+    pack <| function
+    | Str "fighter" (Int(level, rest)) -> Some({ Class = Fighter; Level = level }, rest)
+    | Str "wizard" (Int(level, rest)) -> Some({ Class = Wizard; Level = level }, rest)
+    | _ -> None
+
   let (|Command|_|) = pack <| function
     | Str "new" rest | Str "begin" rest -> Some(NewContext, rest)
     | Str "name" (WS (Chars commaAllowed (name, rest))) -> Some( SetName <| name.Trim(), rest)
@@ -73,7 +81,9 @@ module Grammar =
     | Str "save" rest -> Some(Save None, rest)
     | Str "load" (Words(fileName, rest)) -> Some(Load fileName, rest)
     | Word (AnyCase("swap" | "sw"), (Stat(s1, Stat(s2, rest)))) -> Some(SwapStats(s1, s2), rest)
-    | (Race(race, rest)) -> Some(SetRace race, rest)
+    | Race(race, rest) -> Some(SetRace race, rest)
+    | ClassGoal(classLevel, rest) -> Some(SetClassGoal(classLevel), rest)
+    | Int(xp, Word(AnyCase("xp"), rest)) | Int(xp, Word(AnyCase("xp"), rest)) -> Some(SetXP xp, rest)
     | _ -> None
 
   let rec (|Commands|_|) = pack <| function
@@ -97,13 +107,6 @@ module Prop =
   let statLens id =
     match statData |> List.find (function (id', _, _) when id = id' -> true | _ -> false) with
     | (_, _, lens) -> Current << StatArray << lens
-  let Str = statLens Str
-  let Dex = statLens Dex
-  let Con = statLens Con
-  let Int = statLens Int
-  let Wis = statLens Wis
-  let Cha = statLens Cha
-  let StatsInOrder = [Str;Dex;Con;Int;Wis;Cha]
 open Prop
 
 module View =
@@ -119,15 +122,20 @@ module View =
 let view (state: State) =
   let statBlock = Lens.view Current state
   let stats =
-    statData
-    |> List.map (fun (id, stringRep, _) -> sprintf "%s %d" (stringRep.Substring(0,3)) (statBlock |> View.statView id))
+    [sprintf "HP %i" statBlock.HP]
+    |> List.append
+        (statData
+        |> List.map (fun (id, stringRep, _) -> sprintf "%s %d" (stringRep.Substring(0,3)) (statBlock |> View.statView id)))
     |> String.join ", "
   [
     (sprintf "Name: %s" (Lens.view Prop.Current state).Name)
-    (match statBlock.Race with
-      | Some({ Name = name; Trait = Some(traitName) }) -> sprintf "%s [%s]" name traitName
-      | Some(r) -> r.Name
-      | None -> emptyString)
+    (let classes = statBlock.Levels |> List.map (fun classLevel -> sprintf "%A %i" classLevel.Class classLevel.Level)
+      in String.join " " (
+          match statBlock.Race with
+          | Some({ Name = name; Trait = Some(traitName) }) -> (sprintf "%s [%s]" name traitName) :: classes
+          | Some(r) -> r.Name :: classes
+          | None -> classes
+        ))
     stats
   ]
   |> List.filter ((<>) emptyString)
@@ -138,6 +146,29 @@ type IO<'t> =
     save: string -> 't -> unit
     load: string -> 't option
   }
+
+let recomputeLevelDependentProperties (sb : StatBlock) =
+  let levelMax = PCXP.Table |> List.findBack (fun levelReq -> sb.XP >= levelReq.XPRequired) |> fun x -> x.Level
+  let x = Con
+  let conMod = View.statView Con sb |> combatBonus
+  let actualClassLevels, actualLevels =
+    sb.IntendedLevels @ [{ ClassLevel.Class = Fighter; Level = 20}] // default to fighter 20 as goal
+    |> List.fold (
+      fun (consumed: Map<_, _>, accum: ClassLevel list) classLevel ->
+        let consumption = consumed |> Seq.sumBy(function KeyValue(_, v) -> v)
+        if consumption > levelMax then (consumed, accum)
+        else
+          let consuming = classLevel.Level - (match consumed |> Map.tryFind classLevel.Class with Some(prevLevel) -> prevLevel | _ -> 0)
+
+          if consumption + consuming <= levelMax then
+            (consumed |> Map.add classLevel.Class classLevel.Level), (classLevel :: accum)
+          else // consume as much as possible
+            let classLevel = { classLevel with Level = levelMax - consumption }
+            (consumed |> Map.add classLevel.Class classLevel.Level), classLevel :: accum
+      ) (Map.empty, [])
+  let hp = actualClassLevels |> Seq.sumBy (function KeyValue(Fighter, level) -> level * (6 + conMod) | KeyValue(Wizard, level) -> level * (4 + conMod))
+           |> (+) (match actualLevels.Head.Class with | Fighter -> 4 | Wizard -> 2)
+  { sb with HP = hp; Levels = actualLevels }
 
 type StatBank(roll) =
   let mutable state = { State.Empty with Current = Some 0; Party = [StatBlock.Empty] }
@@ -165,8 +196,9 @@ type StatBank(roll) =
                 }
             })
         | AssignStats(order) when hasCurrent ->
-          let statValues = Prop.StatsInOrder |> List.map (flip Lens.view state) |> List.sortDescending
-          let statsByPriority = Prop.StatsInOrder |> List.mapi (fun i prop -> order.[i], prop) |> List.sortBy fst
+          let statsInOrder = statData |> List.map (fun (_, _, v) -> Current << StatArray << v)
+          let statValues = statsInOrder |> List.map (flip Lens.view state) |> List.sortDescending
+          let statsByPriority = statsInOrder |> List.mapi (fun i prop -> order.[i], prop) |> List.sortBy fst
           let state = statsByPriority
                       |> List.mapi (fun i (_, prop) -> i, prop) // now that they're in order of priority, match each one up with a unique statValue index
                       |> List.fold (fun state (ix, prop) -> state |> Lens.set prop statValues.[ix]) state
@@ -180,6 +212,21 @@ type StatBank(roll) =
             { st with
                 Race = race
             })
+        | SetXP(xp) when hasCurrent ->
+          state |> Lens.over Prop.Current (fun st ->
+            { st with
+                XP = xp
+            })
+        | SetClassGoal(classLevel) when hasCurrent ->
+          state |> Lens.over Prop.Current (fun st ->
+            { st with
+                IntendedLevels =
+                  match st.IntendedLevels |> List.rev with
+                  | h::rest when h.Class = classLevel.Class ->
+                    if classLevel.Level = 0 then rest
+                    else classLevel :: rest
+                  | lst -> classLevel :: lst
+            } |> recomputeLevelDependentProperties)
         | Save(fileName) when hasCurrent ->
           this.IO.save (defaultArg fileName (Lens.view Current state).Name) (Lens.view Current state)
           state

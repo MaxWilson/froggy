@@ -5,15 +5,29 @@ open Xunit
 open Froggy.Packrat
 open Froggy.Dnd5e.CharGen
 open Froggy.Dnd5e.Data
+open System
 
-[<Fact(DisplayName="Usage tests: verify that chargen commands can be parsed correctly")>]
+[<Fact>]
+let VerifyStatBonus() =
+  Assert.Equal(0, combatBonus 10)
+  Assert.Equal(0, skillBonus 10)
+  Assert.Equal(-1, combatBonus 9)
+  Assert.Equal(0, skillBonus 9)
+  Assert.Equal(0, combatBonus 11)
+  Assert.Equal(+1, skillBonus 11)
+  Assert.Equal(+4, combatBonus 19)
+  Assert.Equal(+5, skillBonus 19)
+  Assert.Equal(-4, combatBonus 2)
+  Assert.Equal(-4, skillBonus 2)
+
+[<Fact(DisplayName="Usage tests: verify that chargen commands in core scenario can be parsed correctly")>]
 let UsageTest() =
   let output = ref ""
   let mutable i = 11
   let ctx = StatBank((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
   let proc cmd =
     let cmds = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse
-    Assert.NotEmpty(cmds)
+    Assert.NotEmpty cmds
     ctx.Execute cmds
 
   proc "name Mengar the Magnificent"
@@ -78,6 +92,26 @@ let TestSwapAttributes() =
   Assert.Contains ("Int 16", !output)
   Assert.Contains ("Wis 13", !output)
   Assert.Contains ("Cha 14", !output)
+
+[<Fact>]
+let TestClassLevels() =
+  let output = ref ""
+  let mutable i = 11
+  let ctx = StatBank((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
+  let proc cmd =
+    let cmds = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse
+    Assert.NotEmpty(cmds)
+    ctx.Execute cmds
+  proc "fighter 3; wizard 2"
+  Assert.Contains ("Fighter 3", !output)
+  Assert.Contains ("Wizard 2",!output)
+  proc "wizard 0"
+  Assert.Contains ("Fighter 3", !output)
+  Assert.DoesNotContain ("Wizard",!output, StringComparison.InvariantCultureIgnoreCase)
+  proc "wizard 2; fighter 0"
+  Assert.Contains ("Wizard 2", !output)
+  Assert.DoesNotContain ("Fighter",!output, StringComparison.InvariantCultureIgnoreCase)
+
 
 [<Fact>]
 let TestSaveLoad() =
