@@ -110,6 +110,11 @@ let TestClassLevels() =
   proc "thief 3; wizard 2; fighter 0"
   Assert.Contains ("Wizard 2", !output)
   Assert.DoesNotContain ("Fighter",!output, StringComparison.InvariantCultureIgnoreCase)
+  proc "thief 4; wizard 3"
+  Assert.Contains ("Thief 4;", !output)
+  proc "thief 1; wizard 3"
+  Assert.Contains ("Thief 1;", !output)
+
 
 
 [<Fact>]

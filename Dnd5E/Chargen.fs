@@ -184,6 +184,10 @@ let view (state: State) =
         |> List.map (fun classLevel ->
             // Order N^2 rendering operation, but should be okay. Look up any other classLevels that are strictly less.
             match statBlock.IntendedLevels |> List.filter (fun cl' -> cl'.Class = classLevel.Class && cl'.Level < classLevel.Level) with
+            | cl'::_ when cl'.Level + 1 = classLevel.Level ->
+              sprintf "%s %i" (classToString cl') (classLevel.Level)
+            | [] when classLevel.Level = 1 ->
+              sprintf "%s %i" (classToString classLevel) (classLevel.Level)
             | cl'::_ ->
               sprintf "%s %i-%i" (classToString cl') (cl'.Level + 1) (classLevel.Level)
             | _ ->
