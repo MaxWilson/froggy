@@ -16,17 +16,26 @@ let rec resolve (r: int -> int) = function
     rolls |> Seq.sumBy (resolve r) |> (+) bonus
 
 type StatId = Str | Dex | Con | Int | Wis | Cha
-type ClassId = Fighter | Wizard | Thief | Barbarian | Warlock | Druid
-
-let classData = [
-  // ClassId, string rep, average HP
-  Fighter, "Fighter", 6
-  Wizard, "Wizard", 4
-  Thief, "Thief", 5
-  Barbarian, "Barbarian", 7
-  Warlock, "Warlock", 5
-  Druid, "Druid", 5
-  ]
+type ClassId = Bard | Barbarian | Cleric | Druid | Fighter | Monk | Paladin | Ranger | Rogue | Sorcerer | Warlock | Wizard
+type ClassData = { Id: ClassId; StringRep: string; AverageHP: int; Subclasses: string list }
+  with
+  static member Table =
+    [
+      // ClassId, string rep, average HP
+      Bard, "Bard", 5, ["Lore Bard"; "Valor Bard"]
+      Barbarian, "Barbarian", 7, ["Barbearian"; "Ancestor Barbarian"; "Zealot"]
+      Cleric, "Cleric", 5, []
+      Druid, "Druid", 5, ["Moon"]
+      Fighter, "Fighter", 6, ["Eldritch Knight"; "Battlemaster"]
+      Monk, "Monk", 5, ["Shadow Monk"; "Long Death Monk"]
+      Paladin, "Paladin", 6, ["Paladin of Devotion"]
+      Ranger, "Ranger", 6, ["Hunter"; "Beastmaster"]
+      Rogue, "Rogue", 5, ["Thief"; "Assassin"; "Swashbuckler"; "Mastermind"; "Inquisitive"]
+      Sorcerer, "Sorcerer", 4, ["Wild Mage"; "Shadow Sorcerer"; "Divine Soul"]
+      Wizard, "Wizard", 4, ["Abjuror"; "Conjuror"; "Diviner"; "Evoker"; "Enchanter"; "Illusionist"; "Necromancer"; "Transmuter"; "Bladesinger"; "War Mage"]
+      Warlock, "Warlock", 5, ["Fiendlock"; "Celestialock"; "Cthulock"; "Feylock"; "Deathlock"; "Hexblade"; "Blade Pact"; "Tome Pact"; "Chain Pact"; "Bladelock"; "Tomelock"; "Chainlock"]
+    ]
+    |> List.map (fun (id, str, hp, subclasses) -> { Id = id; StringRep = str; AverageHP = hp; Subclasses = subclasses })
 
 type StatArray = {
     Str: int
@@ -40,7 +49,7 @@ type StatArray = {
 type StatMod = { Stat: StatId; Bonus: int }
 type RaceData = { Name: string; Mods: StatMod list; Trait: string option }
 
-type ClassLevel = { Class: ClassId; Level: int }
+type ClassLevel = { Id: ClassId; Level: int }
 
 type StatBlock = {
     Name : string
@@ -50,6 +59,7 @@ type StatBlock = {
     XP: int
     Levels: ClassLevel list
     IntendedLevels: ClassLevel list
+    Subclasses: (ClassId * string) list
     Notes: string list
   }
   with
@@ -70,6 +80,7 @@ type StatBlock = {
     Levels = []
     IntendedLevels = []
     Notes = []
+    Subclasses = []
   }
 
 type State = {

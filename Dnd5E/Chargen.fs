@@ -13,7 +13,7 @@ module Commands =
     | Load of string
     | SetRace of RaceData option
     | SetXP of int
-    | SetClassGoal of ClassLevel
+    | SetClassGoal of ClassLevel * subclass: string option
     | AmendNote of string
     | AddNote of string
     | ClearNotes
@@ -61,16 +61,30 @@ module Grammar =
     | Str "human" (Stat(s1, Stat(s2, Words(traitName, rest)))) -> Some(raceTrait("VHuman", [s1, +1; s2, +1], traitName), rest)
     | Str "human" (Stat(s1, Stat(s2, rest))) -> Some(race("VHuman", [s1, +1; s2, +1]), rest)
     | Str "human" rest -> Some(race("Human", statData |> List.map (fun (id, _, _) -> id, +1)), rest)
+    | Str "high elf" rest | Str "elf" rest -> Some(race("High elf", [Dex, +2; Int, +1]), rest)
     | Str "wood elf" rest -> Some(race("Wood elf", [Dex, +2; Wis, +1]), rest)
+    | Str "mountain dwarf" rest | Str "dwarf" rest -> Some(race("Mountain dwarf", [Str, +2; Con, +2]), rest)
+    | Str "ghostwise halfling" rest | Str "ghostwise" rest -> Some(race("Ghostwise halfling", [Dex, +2; Wis, +1]), rest)
     | Str "half-elf" (Stat(s1, Stat(s2, rest))) when s1 <> Cha && s2 <> Cha -> Some(race("Half-elf", [s1, +1; s2, +1; Cha, +2]), rest)
     | Str "none" rest | Str "N/A" rest -> Some(None, rest)
     | _ -> None
 
   let (|ClassGoal|_|) =
+    let rec (|WordsNotNumbers|_|) = pack <| function
+      | WordsNotNumbers(words, OWS(Chars alpha (word, rest))) ->
+        Some(words + " " + word, rest)
+      | Word(word, rest) -> Some(word, rest)
+      | _ -> None
     pack <| function
-    | Word(className, (Int(level, rest))) ->
-      match classData |> List.tryFind (fun (_, stringRep, _) -> System.String.Equals(stringRep, className, System.StringComparison.InvariantCultureIgnoreCase)) with
-      | Some((id, _, _)) -> Some({ Class = id; Level = level }, rest)
+    | WordsNotNumbers(className, Int(level, rest)) ->
+      let (|LookupClass|_|) input (cd : ClassData) =
+        if String.equalsIgnoreCase input cd.StringRep then Some(cd.Id, None)
+        else
+          match cd.Subclasses |> List.tryFind (String.equalsIgnoreCase input) with
+          | Some(subclass) -> Some(cd.Id, Some subclass)
+          | None -> None
+      match ClassData.Table |> List.tryPick (function LookupClass className (id, subclass) -> Some(id, subclass) | _ -> None) with
+      | Some(id, subclass) -> Some(({ Id = id; Level = level }, subclass), rest)
       | _ -> None
     | _ -> None
 
@@ -132,23 +146,23 @@ let recomputeLevelDependentProperties (sb : StatBlock) =
   let x = Con
   let conMod = View.statView Con sb |> combatBonus
   let actualClassLevels, actualLevelsRev =
-    sb.IntendedLevels @ [{ ClassLevel.Class = Fighter; Level = 20}] // default to fighter 20 as goal
+    sb.IntendedLevels @ [{ ClassLevel.Id = Fighter; Level = 20}] // default to fighter 20 as goal
     |> List.fold (
       fun (consumed: Map<_, _>, accum: ClassLevel list) classLevel ->
         let consumption = consumed |> Seq.sumBy(function KeyValue(_, v) -> v)
         if consumption >= levelMax then (consumed, accum)
         else
-          let prevLevel = (match consumed |> Map.tryFind classLevel.Class with Some(prevLevel) -> prevLevel | _ -> 0)
+          let prevLevel = (match consumed |> Map.tryFind classLevel.Id with Some(prevLevel) -> prevLevel | _ -> 0)
           let consuming = classLevel.Level - prevLevel
           if consumption + consuming <= levelMax then
-            (consumed |> Map.add classLevel.Class classLevel.Level), (classLevel :: accum)
+            (consumed |> Map.add classLevel.Id classLevel.Level), (classLevel :: accum)
           else // consume as much as possible
             let classLevel = { classLevel with Level = levelMax - (consumption - prevLevel) }
-            (consumed |> Map.add classLevel.Class classLevel.Level), classLevel :: accum
+            (consumed |> Map.add classLevel.Id classLevel.Level), classLevel :: accum
       ) (Map.empty, [])
   let actualLevels = actualLevelsRev |> List.rev
   let classHp classId =
-    classData |> List.sumBy(fun (id, _, hp) -> if classId = id then hp else 0)
+    ClassData.Table |> List.sumBy(fun d -> if classId = d.Id then d.AverageHP else 0)
   let hp =
     actualClassLevels
     |> Seq.sumBy (
@@ -156,15 +170,15 @@ let recomputeLevelDependentProperties (sb : StatBlock) =
           KeyValue(classId, level) ->
             let hp =
               level * (classHp classId + conMod) +
-                (if actualLevels.Head.Class = classId then classHp classId - 2 else 0)
+                (if actualLevels.Head.Id = classId then classHp classId - 2 else 0)
             hp
         )
   let retval = {
     sb with
         HP = hp
         Levels = actualClassLevels
-                  |> Seq.sortBy (function KeyValue(classId, level) -> actualLevels |> List.findIndex (fun x -> x.Class = classId))
-                  |> Seq.map (function KeyValue(classId, level) -> { Class = classId; Level = level })
+                  |> Seq.sortBy (function KeyValue(classId, level) -> actualLevels |> List.findIndex (fun x -> x.Id = classId))
+                  |> Seq.map (function KeyValue(classId, level) -> { Id = classId; Level = level })
                   |> List.ofSeq
     }
   retval
@@ -172,7 +186,10 @@ let recomputeLevelDependentProperties (sb : StatBlock) =
 let view (state: State) =
   let statBlock = Lens.view Current state
   let classToString (cl:ClassLevel) =
-    classData |> List.find (fun (id, _, _) -> id = cl.Class) |> fun (_, stringRep, _) -> stringRep
+    match statBlock.Subclasses |> List.filter (fst >> (=) cl.Id) with
+    | [] -> // fallback to class name
+      ClassData.Table |> List.find (function { Id = id } -> id = cl.Id) |> fun x -> x.StringRep
+    | subclasses -> subclasses |> List.map snd |> String.join " "
   let stats =
     (statData
     |> List.map (fun (id, stringRep, _) -> sprintf "%s %d" (stringRep.Substring(0,3)) (statBlock |> View.statView id)))
@@ -189,7 +206,7 @@ let view (state: State) =
       [statBlock.IntendedLevels
         |> List.map (fun classLevel ->
             // Order N^2 rendering operation, but should be okay. Look up any other classLevels that are strictly less.
-            match statBlock.IntendedLevels |> List.filter (fun cl' -> cl'.Class = classLevel.Class && cl'.Level < classLevel.Level) with
+            match statBlock.IntendedLevels |> List.filter (fun cl' -> cl'.Id = classLevel.Id && cl'.Level < classLevel.Level) with
             | cl'::_ when cl'.Level + 1 = classLevel.Level ->
               sprintf "%s %i" (classToString cl') (classLevel.Level)
             | [] when classLevel.Level = 1 ->
@@ -277,10 +294,10 @@ type StatBank(roll) =
             { st with
                 XP = xp
             })
-        | SetClassGoal(classLevel) when hasCurrent ->
+        | SetClassGoal(classLevel, subclass) when hasCurrent ->
           state |> Lens.over Prop.Current (fun st ->
             let currentMaxLevel =
-              let classLevels = st.IntendedLevels |> List.filter (fun cl -> cl.Class = classLevel.Class)
+              let classLevels = st.IntendedLevels |> List.filter (fun cl -> cl.Id = classLevel.Id)
               if classLevels = [] then 0
               else classLevels
                     |> List.maxBy (fun cl -> cl.Level)
@@ -291,12 +308,12 @@ type StatBank(roll) =
                 // delete now-redundant levels
                 st.IntendedLevels |> List.fold (fun (alreadyAtMax, accum: ClassLevel list) cl' ->
                     match cl' with
-                    | { Class = className; Level = l }
-                      when className = classLevel.Class
+                    | { Id = className; Level = l }
+                      when className = classLevel.Id
                             && newMaxLevel <= 0 ->
                         (true, accum)
-                    | { Class = className; Level = l }
-                      when (className = classLevel.Class
+                    | { Id = className; Level = l }
+                      when (className = classLevel.Id
                             && l > newMaxLevel) ->
                         // trim or delete, depending on whether or not there is a previous entry
                         (true, if alreadyAtMax then accum else { cl' with Level = newMaxLevel }::accum)
@@ -306,7 +323,7 @@ type StatBank(roll) =
                   |> List.rev
               else
                 match st.IntendedLevels |> List.rev with
-                  | h::rest when h.Class = classLevel.Class ->
+                  | h::rest when h.Id = classLevel.Id ->
                     classLevel :: rest
                   | rest -> classLevel :: rest
                 |> List.rev
@@ -318,18 +335,25 @@ type StatBank(roll) =
                       if (sum sums) > 20 then
                         [], sums
                       else
-                        let sums' = (sums |> Map.add cl'.Class cl'.Level)
+                        let sums' = (sums |> Map.add cl'.Id cl'.Level)
                         if sum sums' <= 20 then
-                          [cl'], sums |> Map.add cl'.Class cl'.Level
+                          [cl'], sums |> Map.add cl'.Id cl'.Level
                         else
                           let cl' = { cl' with Level = cl'.Level - (sum sums' - 20) }
-                          [cl'], sums |> Map.add cl'.Class cl'.Level
+                          [cl'], sums |> Map.add cl'.Id cl'.Level
                           ) Map.empty
               |> fst
               |> List.concat
 
             { st with
-                IntendedLevels = lev
+                IntendedLevels = lev;
+                Subclasses =
+                  match subclass with
+                    | Some(subclass) -> st.Subclasses @ [(classLevel.Id, subclass)]
+                                        |> List.distinct
+                    | None -> st.Subclasses
+                  // filter out subclasses for deleted classes
+                  |> List.filter (fun (id, subclass) -> lev |> List.exists (fun x -> x.Id = id))
             })
         | Save(fileName) when hasCurrent ->
           this.IO.save (defaultArg fileName (Lens.view Current state).Name) (Lens.view Current state)

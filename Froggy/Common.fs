@@ -23,3 +23,4 @@ module Lens =
 let emptyString = System.String.Empty
 module String =
   let join delimiter strings = System.String.Join((delimiter: string), (strings: string seq))
+  let equalsIgnoreCase lhs rhs = System.String.Equals(lhs, rhs, System.StringComparison.InvariantCultureIgnoreCase)

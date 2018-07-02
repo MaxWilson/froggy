@@ -127,6 +127,8 @@ let TestClassLevels() =
   Assert.Contains ("Thief 4;", !output)
   proc "thief 1; wizard 3"
   Assert.Contains ("Thief 1;", !output)
+  proc "Blade Pact 3; Hexblade 5"
+  Assert.Contains ("Blade Pact Hexblade 1-5", !output)
 
 
 
