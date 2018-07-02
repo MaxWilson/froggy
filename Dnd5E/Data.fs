@@ -50,6 +50,7 @@ type StatBlock = {
     XP: int
     Levels: ClassLevel list
     IntendedLevels: ClassLevel list
+    Notes: string list
   }
   with
   static member Empty = {
@@ -68,6 +69,7 @@ type StatBlock = {
     XP = 0
     Levels = []
     IntendedLevels = []
+    Notes = []
   }
 
 type State = {

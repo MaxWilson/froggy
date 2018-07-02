@@ -14,6 +14,9 @@ module Commands =
     | SetRace of RaceData option
     | SetXP of int
     | SetClassGoal of ClassLevel
+    | AmendNote of string
+    | AddNote of string
+    | ClearNotes
 open Commands
 open Data
 
@@ -33,8 +36,6 @@ module Grammar =
       Some(lst @ [v], rest)
     | Int(v, rest) -> Some([v], rest)
     | _ -> None
-
-  let commaAllowed = (alphanumeric + Set<_>[' '; ','])
 
   let (|Stat|_|) = pack <| function
     | Word(v, rest) ->
@@ -73,9 +74,11 @@ module Grammar =
       | _ -> None
     | _ -> None
 
+  let commandSeparator = Set<_>[';']
+
   let (|Command|_|) = pack <| function
     | Str "new" rest | Str "begin" rest -> Some(NewContext, rest)
-    | Str "name" (WS (Chars commaAllowed (name, rest))) -> Some( SetName <| name.Trim(), rest)
+    | Str "name" (WS (CharsExcept commandSeparator (name, rest))) -> Some( SetName <| name.Trim(), rest)
     | Words (AnyCase("rollstats" | "roll stats" | "roll"), rest) -> Some(RollStats, rest)
     | Str "assign" (Ints(stats, rest)) when stats.Length = 6 -> // must be 6 numbers that will be interpreted as priorities for stats, in order
       Some(AssignStats stats, rest)
@@ -86,6 +89,9 @@ module Grammar =
     | Race(race, rest) -> Some(SetRace race, rest)
     | ClassGoal(classLevel, rest) -> Some(SetClassGoal(classLevel), rest)
     | Int(xp, Word(AnyCase("xp"), rest)) | Word(AnyCase("xp"), (Int(xp, rest))) -> Some(SetXP xp, rest)
+    | Str "note" (CharsExcept commandSeparator (txt, rest)) -> Some(AddNote <| txt.Trim(), rest)
+    | Str "amendnote" (CharsExcept commandSeparator (txt, rest)) -> Some(AmendNote <| txt.Trim(), rest)
+    | Str "clearnotes" rest -> Some(ClearNotes, rest)
     | _ -> None
 
   let rec (|Commands|_|) = pack <| function
@@ -199,6 +205,7 @@ let view (state: State) =
       |> String.join " "
     stats
   ]
+  @ statBlock.Notes
   |> List.filter ((<>) emptyString)
   |> String.join "\n"
 
@@ -248,6 +255,22 @@ type StatBank(roll) =
           state |> Lens.over Prop.Current (fun st ->
             { st with
                 Race = race
+            })
+        | AddNote(note) when hasCurrent ->
+          state |> Lens.over Prop.Current (fun st ->
+            { st with
+                Notes = st.Notes @ [note]
+            })
+        | AmendNote(note) when hasCurrent ->
+          state |> Lens.over Prop.Current (fun st ->
+            let lastIx = st.Notes.Length - 1
+            { st with
+                Notes = st.Notes |> List.mapi (fun i x -> if i = lastIx then note else x)
+            })
+        | ClearNotes when hasCurrent ->
+          state |> Lens.over Prop.Current (fun st ->
+            { st with
+                Notes = []
             })
         | SetXP(xp) when hasCurrent ->
           state |> Lens.over Prop.Current (fun st ->

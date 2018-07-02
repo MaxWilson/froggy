@@ -114,6 +114,14 @@ let (|Chars|_|) alphabet ((ctx, ix): Input) =
   | endpos when endpos > ix -> Some(ctx.input.Substring(ix, endpos - ix), (ctx, endpos))
   | _ -> None
 
+let (|CharsExcept|_|) exclusions ((ctx, ix): Input) =
+  let rec seek i =
+    if i < ctx.input.Length && not (Set.contains ctx.input.[i] exclusions) then seek (i+1)
+    else i
+  match seek ix with
+  | endpos when endpos > ix -> Some(ctx.input.Substring(ix, endpos - ix), (ctx, endpos))
+  | _ -> None
+
 let (|AnyCase|) (input: string) = input.ToLowerInvariant()
 
 let (|Any|) ((ctx, ix): Input) =

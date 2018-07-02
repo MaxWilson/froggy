@@ -66,6 +66,19 @@ let UsageTest() =
   Assert.Contains ("HP 56", !output)
   Assert.Contains ("[Fighter 1-5; Wizard 1-5; Fighter 6-15]", !output)
 
+  proc "note Mengar is an orphan. He likes Grommit and fears his older sister."
+  proc "note Wally is his best friend"
+  Assert.Contains ("Mengar is an orphan. He likes Grommit and fears his older sister.", !output)
+  Assert.Contains ("Wally is his best friend", !output)
+  proc "amendnote Wally was his best friend"
+  Assert.Contains ("Mengar is an orphan. He likes Grommit and fears his older sister.", !output)
+  Assert.DoesNotContain ("Wally is his best friend", !output)
+  Assert.Contains ("Wally was his best friend", !output)
+  proc "clearnotes; note Mengar fears his mother"
+  Assert.DoesNotContain ("Mengar is an orphan. He likes Grommit and fears his older sister.", !output)
+  Assert.DoesNotContain ("Wally is his best friend", !output)
+  Assert.Contains("Mengar fears his mother", !output)
+
 [<Fact>]
 let TestSwapAttributes() =
   let output = ref ""
