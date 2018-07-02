@@ -1,4 +1,4 @@
-source https://nuget.org/api/v3
+source https://nuget.org/api/v2
 
 storage:none
 
