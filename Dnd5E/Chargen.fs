@@ -232,138 +232,143 @@ type IO<'t> =
     load: string -> 't option
   }
 
+let update (io: IO<_>) roll cmds state =
+  let mutable state = state
+  for cmd in cmds do
+    state <-
+      let hasCurrent = state.Current.IsSome
+      match cmd with
+      | NewContext -> { State.Empty with Current = Some 0; Party = [StatBlock.Empty] }
+      | SetName v when hasCurrent ->
+          state |> Lens.over Prop.Current (fun st -> { st with Name = v })
+      | RollStats when hasCurrent->
+        state |> Lens.over Prop.Current (fun st ->
+          { st with
+              Stats =
+              {
+              Str = roll (RollSpec.SumBestNofM(4,3,6))
+              Dex = roll (RollSpec.SumBestNofM(4,3,6))
+              Con = roll (RollSpec.SumBestNofM(4,3,6))
+              Int = roll (RollSpec.SumBestNofM(4,3,6))
+              Wis = roll (RollSpec.SumBestNofM(4,3,6))
+              Cha = roll (RollSpec.SumBestNofM(4,3,6))
+              }
+          })
+      | AssignStats(order) when hasCurrent ->
+        let statsInOrder = statData |> List.map (fun (_, _, v) -> Current << StatArray << v)
+        let statValues = statsInOrder |> List.map (flip Lens.view state) |> List.sortDescending
+        let statsByPriority = statsInOrder |> List.mapi (fun i prop -> order.[i], prop) |> List.sortBy fst
+        statsByPriority
+        |> List.mapi (fun i (_, prop) -> i, prop) // now that they're in order of priority, match each one up with a unique statValue index
+        |> List.fold (fun state (ix, prop) -> state |> Lens.set prop statValues.[ix]) state
+      | SwapStats(s1, s2) when hasCurrent ->
+        let lenses = [s1;s2] |> List.map statLens
+        let vals = lenses |> List.map (fun l -> Lens.view l state) |> List.rev
+        (vals |> List.zip lenses) |> List.fold (fun st (l, v) -> Lens.set l v st) state
+      | SetRace(race) when hasCurrent ->
+        state |> Lens.over Prop.Current (fun st ->
+          { st with
+              Race = race
+          })
+      | AddNote(note) when hasCurrent ->
+        state |> Lens.over Prop.Current (fun st ->
+          { st with
+              Notes = st.Notes @ [note]
+          })
+      | AmendNote(note) when hasCurrent ->
+        state |> Lens.over Prop.Current (fun st ->
+          let lastIx = st.Notes.Length - 1
+          { st with
+              Notes = st.Notes |> List.mapi (fun i x -> if i = lastIx then note else x)
+          })
+      | ClearNotes when hasCurrent ->
+        state |> Lens.over Prop.Current (fun st ->
+          { st with
+              Notes = []
+          })
+      | SetXP(xp) when hasCurrent ->
+        state |> Lens.over Prop.Current (fun st ->
+          { st with
+              XP = xp
+          })
+      | SetClassGoal(classLevel, subclass) when hasCurrent ->
+        state |> Lens.over Prop.Current (fun st ->
+          let currentMaxLevel =
+            let classLevels = st.IntendedLevels |> List.filter (fun cl -> cl.Id = classLevel.Id)
+            if classLevels = [] then 0
+            else classLevels
+                  |> List.maxBy (fun cl -> cl.Level)
+                  |> fun x -> x.Level
+          let lev =
+            let newMaxLevel = classLevel.Level
+            if newMaxLevel < currentMaxLevel then
+              // delete now-redundant levels
+              st.IntendedLevels |> List.fold (fun (alreadyAtMax, accum: ClassLevel list) cl' ->
+                  match cl' with
+                  | { Id = className; Level = l }
+                    when className = classLevel.Id
+                          && newMaxLevel <= 0 ->
+                      (true, accum)
+                  | { Id = className; Level = l }
+                    when (className = classLevel.Id
+                          && l > newMaxLevel) ->
+                      // trim or delete, depending on whether or not there is a previous entry
+                      (true, if alreadyAtMax then accum else { cl' with Level = newMaxLevel }::accum)
+                  | v -> (alreadyAtMax, cl'::accum)
+                ) (false, [])
+                |> snd
+                |> List.rev
+            else
+              match st.IntendedLevels |> List.rev with
+                | h::rest when h.Id = classLevel.Id ->
+                  classLevel :: rest
+                | rest -> classLevel :: rest
+              |> List.rev
+          // cap total levels at 20
+          let lev =
+            lev
+            |> List.mapFold (fun (sums : Map<_, _>) cl' ->
+                    let sum = Seq.sumBy (function KeyValue(_, level) -> level)
+                    if (sum sums) > 20 then
+                      [], sums
+                    else
+                      let sums' = (sums |> Map.add cl'.Id cl'.Level)
+                      if sum sums' <= 20 then
+                        [cl'], sums |> Map.add cl'.Id cl'.Level
+                      else
+                        let cl' = { cl' with Level = cl'.Level - (sum sums' - 20) }
+                        [cl'], sums |> Map.add cl'.Id cl'.Level
+                        ) Map.empty
+            |> fst
+            |> List.concat
+
+          { st with
+              IntendedLevels = lev;
+              Subclasses =
+                match subclass with
+                  | Some(subclass) -> st.Subclasses @ [(classLevel.Id, subclass)]
+                                      |> List.distinct
+                  | None -> st.Subclasses
+                // filter out subclasses for deleted classes
+                |> List.filter (fun (id, subclass) -> lev |> List.exists (fun x -> x.Id = id))
+          })
+      | Save(fileName) when hasCurrent ->
+        io.save (defaultArg fileName (Lens.view Current state).Name) (Lens.view Current state)
+        state
+      | Load(fileName) ->
+        match io.load fileName with
+        | Some(newChar) ->
+          Lens.set Current newChar state
+        | None -> state
+  state <- state |> Lens.over Prop.Current (recomputeLevelDependentProperties)
+  state
+
 type StatBank(roll) =
   let mutable state = { State.Empty with Current = Some 0; Party = [StatBlock.Empty] }
   member val UpdateStatus = (fun (str: string) -> ()) with get, set
   member val IO = { save = (fun _ _ -> failwith "Not supported"); load = (fun _ -> failwith "Not supported") } with get, set
   member this.Execute(cmds: Command list) =
-    for cmd in cmds do
-      state <-
-        let hasCurrent = state.Current.IsSome
-        match cmd with
-        | NewContext -> { State.Empty with Current = Some 0; Party = [StatBlock.Empty] }
-        | SetName v when hasCurrent ->
-           state |> Lens.over Prop.Current (fun st -> { st with Name = v })
-        | RollStats when hasCurrent->
-          state |> Lens.over Prop.Current (fun st ->
-            { st with
-                Stats =
-                {
-                Str = roll (RollSpec.SumBestNofM(4,3,6))
-                Dex = roll (RollSpec.SumBestNofM(4,3,6))
-                Con = roll (RollSpec.SumBestNofM(4,3,6))
-                Int = roll (RollSpec.SumBestNofM(4,3,6))
-                Wis = roll (RollSpec.SumBestNofM(4,3,6))
-                Cha = roll (RollSpec.SumBestNofM(4,3,6))
-                }
-            })
-        | AssignStats(order) when hasCurrent ->
-          let statsInOrder = statData |> List.map (fun (_, _, v) -> Current << StatArray << v)
-          let statValues = statsInOrder |> List.map (flip Lens.view state) |> List.sortDescending
-          let statsByPriority = statsInOrder |> List.mapi (fun i prop -> order.[i], prop) |> List.sortBy fst
-          statsByPriority
-          |> List.mapi (fun i (_, prop) -> i, prop) // now that they're in order of priority, match each one up with a unique statValue index
-          |> List.fold (fun state (ix, prop) -> state |> Lens.set prop statValues.[ix]) state
-        | SwapStats(s1, s2) when hasCurrent ->
-          let lenses = [s1;s2] |> List.map statLens
-          let vals = lenses |> List.map (fun l -> Lens.view l state) |> List.rev
-          (vals |> List.zip lenses) |> List.fold (fun st (l, v) -> Lens.set l v st) state
-        | SetRace(race) when hasCurrent ->
-          state |> Lens.over Prop.Current (fun st ->
-            { st with
-                Race = race
-            })
-        | AddNote(note) when hasCurrent ->
-          state |> Lens.over Prop.Current (fun st ->
-            { st with
-                Notes = st.Notes @ [note]
-            })
-        | AmendNote(note) when hasCurrent ->
-          state |> Lens.over Prop.Current (fun st ->
-            let lastIx = st.Notes.Length - 1
-            { st with
-                Notes = st.Notes |> List.mapi (fun i x -> if i = lastIx then note else x)
-            })
-        | ClearNotes when hasCurrent ->
-          state |> Lens.over Prop.Current (fun st ->
-            { st with
-                Notes = []
-            })
-        | SetXP(xp) when hasCurrent ->
-          state |> Lens.over Prop.Current (fun st ->
-            { st with
-                XP = xp
-            })
-        | SetClassGoal(classLevel, subclass) when hasCurrent ->
-          state |> Lens.over Prop.Current (fun st ->
-            let currentMaxLevel =
-              let classLevels = st.IntendedLevels |> List.filter (fun cl -> cl.Id = classLevel.Id)
-              if classLevels = [] then 0
-              else classLevels
-                    |> List.maxBy (fun cl -> cl.Level)
-                    |> fun x -> x.Level
-            let lev =
-              let newMaxLevel = classLevel.Level
-              if newMaxLevel < currentMaxLevel then
-                // delete now-redundant levels
-                st.IntendedLevels |> List.fold (fun (alreadyAtMax, accum: ClassLevel list) cl' ->
-                    match cl' with
-                    | { Id = className; Level = l }
-                      when className = classLevel.Id
-                            && newMaxLevel <= 0 ->
-                        (true, accum)
-                    | { Id = className; Level = l }
-                      when (className = classLevel.Id
-                            && l > newMaxLevel) ->
-                        // trim or delete, depending on whether or not there is a previous entry
-                        (true, if alreadyAtMax then accum else { cl' with Level = newMaxLevel }::accum)
-                    | v -> (alreadyAtMax, cl'::accum)
-                  ) (false, [])
-                  |> snd
-                  |> List.rev
-              else
-                match st.IntendedLevels |> List.rev with
-                  | h::rest when h.Id = classLevel.Id ->
-                    classLevel :: rest
-                  | rest -> classLevel :: rest
-                |> List.rev
-            // cap total levels at 20
-            let lev =
-              lev
-              |> List.mapFold (fun (sums : Map<_, _>) cl' ->
-                      let sum = Seq.sumBy (function KeyValue(_, level) -> level)
-                      if (sum sums) > 20 then
-                        [], sums
-                      else
-                        let sums' = (sums |> Map.add cl'.Id cl'.Level)
-                        if sum sums' <= 20 then
-                          [cl'], sums |> Map.add cl'.Id cl'.Level
-                        else
-                          let cl' = { cl' with Level = cl'.Level - (sum sums' - 20) }
-                          [cl'], sums |> Map.add cl'.Id cl'.Level
-                          ) Map.empty
-              |> fst
-              |> List.concat
-
-            { st with
-                IntendedLevels = lev;
-                Subclasses =
-                  match subclass with
-                    | Some(subclass) -> st.Subclasses @ [(classLevel.Id, subclass)]
-                                        |> List.distinct
-                    | None -> st.Subclasses
-                  // filter out subclasses for deleted classes
-                  |> List.filter (fun (id, subclass) -> lev |> List.exists (fun x -> x.Id = id))
-            })
-        | Save(fileName) when hasCurrent ->
-          this.IO.save (defaultArg fileName (Lens.view Current state).Name) (Lens.view Current state)
-          state
-        | Load(fileName) ->
-          match this.IO.load fileName with
-          | Some(newChar) ->
-            Lens.set Current newChar state
-          | None -> state
-    state <- state |> Lens.over Prop.Current (recomputeLevelDependentProperties)
+    state <- update this.IO roll cmds state
     view state |> this.UpdateStatus
   member this.Execute(cmd) = this.Execute [cmd]
   new() =
