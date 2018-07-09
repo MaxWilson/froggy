@@ -3,6 +3,8 @@
 let flip f x y = f y x
 let thunk x _ = x
 let betweenInclusive bound1 bound2 x = (min bound1 bound2) <= x && x <= (max bound1 bound2)
+let thunk1 f x _ = f x
+let thunk2 f x y _ = f x y
 
 // Lens code based on http://www.fssnip.net/7Pk/title/Polymorphic-lenses by Vesa Karvonen
 
