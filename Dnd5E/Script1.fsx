@@ -70,13 +70,17 @@ let mutable test =
   pcs
   |> List.fold (flip load) Data.Empty
 
-type Resolve = Resolve with
+type ResolveRequest = ResolveProperty of id:Id * propertyName:PropertyName
+type Resolve =
+  | Placeholder
+  | Request of ResolveRequest * continuation:(PropertyValue -> Resolve)
+  with
   static member Execute queryIO state resolve = ()
 type ResolveBuilder() =
-  member this.Bind(m, continuation: PropertyValue -> Resolve) = Resolve
-  member this.For(m, continuation: PropertyValue -> Resolve) = Resolve
-  member this.Zero() = Resolve
-  member this.Return(m, value: int) = Resolve
+  member this.Bind(m: ResolveRequest, continuation: PropertyValue -> Resolve) = Resolve.Request(m)
+  member this.For(m, continuation: PropertyValue -> Resolve) = Placeholder
+  member this.Zero() = Placeholder
+  member this.Return(m, value: int) = Placeholder
 
 let resolve = ResolveBuilder()
 
