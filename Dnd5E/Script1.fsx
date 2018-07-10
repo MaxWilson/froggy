@@ -71,7 +71,7 @@ let mutable test =
   |> List.fold (flip load) Data.Empty
 
 type Resolve = Resolve with
-  static member Execute queryIO state = ()
+  static member Execute queryIO state resolve = ()
 type ResolveBuilder() =
   member this.Bind(m, continuation: PropertyValue -> Resolve) = Resolve
   member this.For(m, continuation: PropertyValue -> Resolve) = Resolve
@@ -88,17 +88,23 @@ let lookup id propName (data : Data) =
     let v = (getValue queryFromConsole) (fun _ -> data.reverseRoster.[id]) prop
     v, { data with mapping = data.mapping |> Map.add (id, prop.Name) v }
 
+
+test <- Data.Empty
 resolve {
   let pc = "Eladriel Shadowdancer"
+  test <- test |> load pc
   let! hp = lookup test.roster.[pc] "HP"
   printfn "%s's HP: %d" pc hp.AsNumber
   let pc = "Vladimir Nightbinder"
+  test <- test |> load pc
   let! hp = lookup test.roster.[pc] "HP"
   printfn "%s's HP: %d" pc hp.AsNumber
   let pc = "Nevermore Jack"
+  test <- test |> load pc
   let! hp = lookup test.roster.[pc] "HP"
   printfn "%s's HP: %d" pc hp.AsNumber
   let pc = "Cranduin the Lesser"
+  test <- test |> load pc
   let! hp = lookup test.roster.[pc] "HP"
   printfn "%s's HP: %d" pc hp.AsNumber
   return "what's this for?", hp.AsNumber
