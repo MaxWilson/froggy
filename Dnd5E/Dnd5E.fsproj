@@ -11,7 +11,10 @@
   <ItemGroup>
     <Compile Include="Data.fs" />
     <Compile Include="CharGen.fs" />
+    <None Include="Script1.fsx" />
   </ItemGroup>
+
+  <ItemGroup />
 
   <ItemGroup>
     <ProjectReference Include="..\Froggy\Froggy.fsproj" />
