@@ -65,24 +65,39 @@ let load name data =
       reverseRoster = Map.add id' name data.reverseRoster
     }
 
-let pcs = ["Eladriel"; "Cranduin"; "Vlad"; "Jack"]
-let mutable test =
-  pcs
-  |> List.fold (flip load) Data.Empty
-
-type ResolveRequest = ResolveProperty of id:Id * propertyName:PropertyName
-type Resolve =
-  | Placeholder
-  | Request of ResolveRequest * continuation:(PropertyValue -> Resolve)
+type DeferredInput<'t> =
+  | Result of 't
+  | Query of continuation:((string -> string) -> Data -> Data * DeferredInput<'t>)
   with
-  static member Execute queryIO state resolve = ()
-type ResolveBuilder() =
-  member this.Bind(m: ResolveRequest, continuation: PropertyValue -> Resolve) = Resolve.Request(m)
-  member this.For(m, continuation: PropertyValue -> Resolve) = Placeholder
-  member this.Zero() = Placeholder
-  member this.Return(m, value: int) = Placeholder
+  static member Execute queryIO state = function
+  | Result(t) -> t, state
+  | Query(continuation) ->
+    let state, next = continuation queryIO state
+    DeferredInput<_>.Execute queryIO state next
 
-let resolve = ResolveBuilder()
+type DeferredInputBuilder() =
+  let resolve (id:Id, propName:PropertyName) continuation queryIO (data: Data) =
+    let v, data =
+      match Map.tryFind (id, propName) data.mapping with
+      | Some(v) -> v, data
+      | None ->
+        let prop = Properties.[propName]
+        let v = (getValue queryIO) (fun _ -> data.reverseRoster.[id]) prop
+        v, { data with mapping = data.mapping |> Map.add (id, prop.Name) v }
+    data, continuation v
+  member this.Bind((id:Id, propName:PropertyName), continuation: PropertyValue -> DeferredInput<_>) =
+    Query(resolve (id, propName) continuation)
+  member this.Bind((name:string, propName:PropertyName), continuation: PropertyValue -> DeferredInput<_>) =
+    let resolve queryIO (data: Data) =
+      let id = data.roster.[name]
+      resolve (id, propName) continuation queryIO data
+    Query(resolve)
+  //member this.For(m, continuation: PropertyValue -> Resolve) = Placeholder
+  member this.Zero() = Result ()
+  member this.Return(value) =
+    Result value
+
+let resolve = DeferredInputBuilder()
 
 let lookup id propName (data : Data) =
   match Map.tryFind (id, propName) data.mapping with
@@ -93,27 +108,27 @@ let lookup id propName (data : Data) =
     v, { data with mapping = data.mapping |> Map.add (id, prop.Name) v }
 
 
-test <- Data.Empty
-resolve {
-  let pc = "Eladriel Shadowdancer"
-  test <- test |> load pc
-  let! hp = lookup test.roster.[pc] "HP"
-  printfn "%s's HP: %d" pc hp.AsNumber
-  let pc = "Vladimir Nightbinder"
-  test <- test |> load pc
-  let! hp = lookup test.roster.[pc] "HP"
-  printfn "%s's HP: %d" pc hp.AsNumber
-  let pc = "Nevermore Jack"
-  test <- test |> load pc
-  let! hp = lookup test.roster.[pc] "HP"
-  printfn "%s's HP: %d" pc hp.AsNumber
-  let pc = "Cranduin the Lesser"
-  test <- test |> load pc
-  let! hp = lookup test.roster.[pc] "HP"
-  printfn "%s's HP: %d" pc hp.AsNumber
-  return "what's this for?", hp.AsNumber
-  //for pc in pcs do
-  //  let! hp = lookup (test.roster.[pc]) "HP"
-  //  printfn "%s's HP: %d" pc hp.AsNumber
-} |> Resolve.Execute queryFromConsole (pcs |> List.fold (flip load) Data.Empty)
+let spec =
+  resolve {
+    let pc = "Eladriel Shadowdancer"
+    let! hp = pc, "HP"
+    printfn "%s's HP: %d" pc hp.AsNumber
+    let pc = "Vladimir Nightbinder"
+    let! hp = pc, "HP"
+    printfn "%s's HP: %d" pc hp.AsNumber
+    let pc = "Nevermore Jack"
+    let! hp = pc, "HP"
+    printfn "%s's HP: %d" pc hp.AsNumber
+    let pc = "Cranduin the Lesser"
+    let! hp = pc, "HP"
+    printfn "%s's HP: %d" pc hp.AsNumber
+    return hp.AsNumber
+    //for pc in pcs do
+    //  let! hp = lookup (test.roster.[pc]) "HP"
+    //  printfn "%s's HP: %d" pc hp.AsNumber
+  }
+let pcs = ["Eladriel Shadowdancer"; "Cranduin the Lesser"; "Vladimir Nightbinder"; "Nevermore Jack"]
+let state = (pcs |> List.fold (flip load) Data.Empty)
+let result, state = DeferredInput<_>.Execute queryFromConsole state spec
+
 
