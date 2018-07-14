@@ -1,4 +1,4 @@
-﻿module Froggy.Dnd5e.Tests
+﻿module Froggy.Dnd5e.ChargenTests
 
 open Xunit
 
@@ -24,9 +24,9 @@ let VerifyStatBonus() =
 let UsageTest() =
   let output = ref ""
   let mutable i = 11
-  let ctx = StatBank((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
+  let ctx = GameState((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
   let proc cmd =
-    let cmds = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse
+    let cmds = ParseArgs.Init cmd |> Froggy.Dnd5e.CharGen.parse
     Assert.NotEmpty cmds
     ctx.Execute cmds
 
@@ -83,9 +83,9 @@ let UsageTest() =
 let TestSwapAttributes() =
   let output = ref ""
   let mutable i = 11
-  let ctx = StatBank((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
+  let ctx = GameState((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
   let proc cmd =
-    let cmds = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse
+    let cmds = ParseArgs.Init cmd |> Froggy.Dnd5e.CharGen.parse
     Assert.NotEmpty(cmds)
     ctx.Execute cmds
   proc "name Mengar the Magnificent"
@@ -109,9 +109,9 @@ let TestSwapAttributes() =
 let TestClassLevels() =
   let output = ref ""
   let mutable i = 11
-  let ctx = StatBank((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
+  let ctx = GameState((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
   let proc cmd =
-    let cmds = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse
+    let cmds = ParseArgs.Init cmd |> Froggy.Dnd5e.CharGen.parse
     Assert.NotEmpty(cmds)
     ctx.Execute cmds
   proc "fighter 3; wizard 2; xp 6500"
@@ -136,9 +136,9 @@ let TestClassLevels() =
 let TestSaveLoad() =
   let output = ref ""
   let mutable i = 11
-  let ctx = StatBank((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
+  let ctx = GameState((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
   let proc cmd =
-    let cmds = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse
+    let cmds = ParseArgs.Init cmd |> Froggy.Dnd5e.CharGen.parse
     Assert.NotEmpty(cmds)
     ctx.Execute cmds
   proc "name Mengar the Magnificent"
@@ -150,9 +150,11 @@ let TestSaveLoad() =
   Assert.Contains ("Int 15", !output)
   Assert.Contains ("Wis 16", !output)
   Assert.Contains ("Cha 17", !output)
-  let mutable jsonFile = StatBlock.Empty
-  ctx.IO <- { save = (fun _ data -> jsonFile <- data); load = (fun fileName -> if fileName = "Mary Sue" then Some ({StatBlock.Empty with Name = "Mary Sue"; Stats = { Str = 18; Dex = 18; Con = 18; Int = 18; Wis = 18; Cha = 22 }}) else None) }
+  let mutable jsonFile = CharSheet.Empty
+  let mutable fileName = ""
+  ctx.IO <- { save = (fun fileName' data -> fileName <- fileName'; jsonFile <- data); load = (fun fileName -> if fileName = "Mary Sue" then Some ({CharSheet.Empty with Name = "Mary Sue"; Stats = { Str = 18; Dex = 18; Con = 18; Int = 18; Wis = 18; Cha = 22 }}) else None) }
   proc "save"
+  Assert.Equal("Mengar", fileName)
   Assert.Equal("Mengar the Magnificent", jsonFile.Name)
   Assert.Equal(12, jsonFile.Stats.Str)
   proc "load Mary Sue"
@@ -168,13 +170,13 @@ let TestSaveLoad() =
 let CornerCasees() =
   let output = ref ""
   let mutable i = 11
-  let ctx = StatBank((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
+  let ctx = GameState((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
   let proc cmd =
-    let cmds = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse
+    let cmds = ParseArgs.Init cmd |> Froggy.Dnd5e.CharGen.parse
     Assert.NotEmpty(cmds)
     ctx.Execute cmds
   let failproc cmd =
-    let cmds = ParseContext.Init cmd |> Froggy.Dnd5e.CharGen.parse
+    let cmds = ParseArgs.Init cmd |> Froggy.Dnd5e.CharGen.parse
     Assert.Empty(cmds)
   Assert.Equal("", !output)
   proc "new"
@@ -202,7 +204,7 @@ let CornerCasees() =
   proc "name Bob; assign 2 2 2 1 2 2"
   Assert.Contains("Name: Bob\n", !output)
   Assert.Contains("Int 17", !output)
-  ctx.IO <- { save = (fun _ _ -> ()); load = (fun fileName -> if fileName = "Mary Sue" then Some ({StatBlock.Empty with Name = "Mary Sue"; Stats = { Str = 18; Dex = 18; Con = 18; Int = 18; Wis = 18; Cha = 22 }}) else None) }
+  ctx.IO <- { save = (fun _ _ -> ()); load = (fun fileName -> if fileName = "Mary Sue" then Some ({CharSheet.Empty with Name = "Mary Sue"; Stats = { Str = 18; Dex = 18; Con = 18; Int = 18; Wis = 18; Cha = 22 }}) else None) }
   Assert.Contains("Name: Bob", !output)
   proc "load Hedwig"
   Assert.Contains("Name: Bob", !output)

@@ -18,11 +18,21 @@ module Lens =
   let over l f =
     l (f >> Some) >> function Some t -> t | _ -> failwith "Impossible"
   let set l b = over l <| fun _ -> b
-  let lens get set = fun f s ->
-    (get s |> f : Option<_>) |> Option.map (fun f -> set f s)
+  let lens get set : Lens<_, _, _, _> =
+    fun f s ->
+      ((get s |> f : Option<_>) |> Option.map (fun f -> set f s))
 
 
 let emptyString = System.String.Empty
 module String =
   let join delimiter strings = System.String.Join((delimiter: string), (strings: string seq))
   let equalsIgnoreCase lhs rhs = System.String.Equals(lhs, rhs, System.StringComparison.InvariantCultureIgnoreCase)
+  let firstWord input =
+    match Option.ofObj input with
+    | Some(v:string) -> v.Trim().Split(' ') |> Seq.head
+    | None -> input
+
+let random = System.Random()
+let randomChoice (lst: _ array) =
+  if lst.Length = 0 then failwith "Cannot choose from an empty list"
+  else lst.[random.Next(lst.Length)]

@@ -1,8 +1,11 @@
-﻿module Froggy.Dnd5e.Data
+﻿/// Shared data structures, especially ones that get serialized to JSON
+module Froggy.Dnd5e.Data
+
+open Froggy
 
 type RollSpec =
   | Sum of n:int * die:int
-  | SumBestNofM of n:int * m:int * die:int
+  | SumKeepBestNofM of n:int * m:int * die:int
   | Compound of rolls: RollSpec list * bonus: int
 
 type RollResolver = RollSpec -> int
@@ -10,8 +13,11 @@ type RollResolver = RollSpec -> int
 let rec resolve (r: int -> int) = function
   | RollSpec.Sum(n, die) ->
     seq { for _ in 1..n -> r die } |> Seq.sum
-  | RollSpec.SumBestNofM(n, m, die) ->
-    seq { for _ in 1..n -> r die } |> Seq.sortDescending |> Seq.take m |> Seq.sum
+  | RollSpec.SumKeepBestNofM(n, m, die) ->
+    seq { for _ in 1..(max 0 n) -> r die }
+    |> Seq.sortDescending
+    |> Seq.take (max 0 (min m n)) // bounds check
+    |> Seq.sum
   | RollSpec.Compound(rolls,  bonus) ->
     rolls |> Seq.sumBy (resolve r) |> (+) bonus
 
@@ -51,7 +57,7 @@ type RaceData = { Name: string; Mods: StatMod list; Trait: string option }
 
 type ClassLevel = { Id: ClassId; Level: int }
 
-type StatBlock = {
+type CharSheet = {
     Name : string
     Stats: StatArray
     HP: int
@@ -83,9 +89,9 @@ type StatBlock = {
     Subclasses = []
   }
 
-type State = {
+type Party = {
     Current: int option
-    Party: StatBlock list
+    Party: CharSheet list
   }
   with
   static member Empty = { Current = None; Party = [] }
@@ -122,3 +128,24 @@ let combatBonus statVal =
   (statVal/2) - 5
 let skillBonus statVal =
   ((statVal+1)/2) - 5
+
+module Grammar =
+  open Froggy.Packrat
+  let rec (|Rolls|_|) = pack <| function
+    | SimpleRoll(lhs, OWS(Char('+', OWS(Rolls(rhs, rest))))) -> Some(lhs::rhs, rest)
+    | SimpleRoll(roll, rest) -> Some([roll], rest)
+    | _ -> None
+  and (|SimpleRoll|_|) = pack <| function
+    | Int(n, Char ('d', Int(d, Char ('k', Int(m, rest))))) -> Some (RollSpec.SumKeepBestNofM(n, m, d), rest)
+    | Int(n, Char ('d', Int(d, rest))) -> Some (RollSpec.Sum(n, d), rest)
+    | Int(n, Char ('d', rest)) -> Some (RollSpec.Sum(n, 6), rest)
+    | Char ('d', Int(d, rest)) -> Some (RollSpec.Sum(1, d), rest)
+    | _ -> None
+  let (|Roll|_|) = pack <| function
+    | Rolls(lhs, OWS(Char('+', OWS(Int(rhs, rest))))) -> Some (RollSpec.Compound(lhs, rhs), rest)
+    | Rolls(lhs, OWS(Char('-', OWS(Int(rhs, rest))))) -> Some (RollSpec.Compound(lhs, -rhs), rest)
+    | Rolls([v], rest) -> Some(v, rest)
+    | Rolls(rolls, rest) -> Some(RollSpec.Compound(rolls, 0), rest)
+    | _ -> None
+
+type MonsterTemplate = { TypeName : string; Namelist: string[]; HP: RollSpec }

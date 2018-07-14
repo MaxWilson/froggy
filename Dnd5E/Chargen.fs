@@ -120,7 +120,7 @@ let parse input =
 
 module Prop =
   let Current = Lens.lens
-                  (function { Current = Some(v); Party = P } -> P.[v] | { Current = None } -> StatBlock.Empty)
+                  (function { Current = Some(v); Party = P } -> P.[v] | { Current = None } -> CharSheet.Empty)
                   (fun v state  -> match state with
                                     | { Current = Some(ix); Party = P } -> { state with Party = P |> List.mapi (fun i v' -> if i = ix then v else v') }
                                     | _ -> { state with Current = Some 0; Party = [v] }
@@ -141,7 +141,7 @@ module View =
       | total when total > 20 || total < 1 -> v // don't use mods if that would push values out of bounds
       | total -> total
 
-let recomputeLevelDependentProperties (sb : StatBlock) =
+let recomputeLevelDependentProperties (sb : CharSheet) =
   let levelMax = PCXP.Table |> List.findBack (fun levelReq -> sb.XP >= levelReq.XPRequired) |> fun x -> x.Level
   let x = Con
   let conMod = View.statView Con sb |> combatBonus
@@ -183,7 +183,7 @@ let recomputeLevelDependentProperties (sb : StatBlock) =
     }
   retval
 
-let view (state: State) =
+let view (state: Party) =
   let statBlock = Lens.view Current state
   let classToString (cl:ClassLevel) =
     match statBlock.Subclasses |> List.filter (fst >> (=) cl.Id) with
@@ -238,7 +238,7 @@ let update (io: IO<_>) roll cmds state =
     state <-
       let hasCurrent = state.Current.IsSome
       match cmd with
-      | NewContext -> { State.Empty with Current = Some 0; Party = [StatBlock.Empty] }
+      | NewContext -> { Party.Empty with Current = Some 0; Party = [CharSheet.Empty] }
       | SetName v when hasCurrent ->
           state |> Lens.over Prop.Current (fun st -> { st with Name = v })
       | RollStats when hasCurrent->
@@ -246,12 +246,12 @@ let update (io: IO<_>) roll cmds state =
           { st with
               Stats =
               {
-              Str = roll (RollSpec.SumBestNofM(4,3,6))
-              Dex = roll (RollSpec.SumBestNofM(4,3,6))
-              Con = roll (RollSpec.SumBestNofM(4,3,6))
-              Int = roll (RollSpec.SumBestNofM(4,3,6))
-              Wis = roll (RollSpec.SumBestNofM(4,3,6))
-              Cha = roll (RollSpec.SumBestNofM(4,3,6))
+              Str = roll (RollSpec.SumKeepBestNofM(4,3,6))
+              Dex = roll (RollSpec.SumKeepBestNofM(4,3,6))
+              Con = roll (RollSpec.SumKeepBestNofM(4,3,6))
+              Int = roll (RollSpec.SumKeepBestNofM(4,3,6))
+              Wis = roll (RollSpec.SumKeepBestNofM(4,3,6))
+              Cha = roll (RollSpec.SumKeepBestNofM(4,3,6))
               }
           })
       | AssignStats(order) when hasCurrent ->
@@ -353,7 +353,7 @@ let update (io: IO<_>) roll cmds state =
                 |> List.filter (fun (id, subclass) -> lev |> List.exists (fun x -> x.Id = id))
           })
       | Save(fileName) when hasCurrent ->
-        io.save (defaultArg fileName (Lens.view Current state).Name) (Lens.view Current state)
+        io.save (defaultArg fileName ((Lens.view Current state).Name |> String.firstWord)) (Lens.view Current state)
         state
       | Load(fileName) ->
         match io.load fileName with
@@ -363,8 +363,8 @@ let update (io: IO<_>) roll cmds state =
   state <- state |> Lens.over Prop.Current (recomputeLevelDependentProperties)
   state
 
-type StatBank(roll) =
-  let mutable state = { State.Empty with Current = Some 0; Party = [StatBlock.Empty] }
+type GameState(roll) =
+  let mutable state = { Party.Empty with Current = Some 0; Party = [CharSheet.Empty] }
   member val UpdateStatus = (fun (str: string) -> ()) with get, set
   member val IO = { save = (fun _ _ -> failwith "Not supported"); load = (fun _ -> failwith "Not supported") } with get, set
   member this.Execute(cmds: Command list) =
@@ -372,5 +372,4 @@ type StatBank(roll) =
     view state |> this.UpdateStatus
   member this.Execute(cmd) = this.Execute [cmd]
   new() =
-    let random = System.Random()
-    StatBank(resolve <| fun x -> 1 + random.Next(x))
+    GameState(resolve <| fun x -> 1 + random.Next(x))

@@ -11,30 +11,41 @@ open Froggy.Dnd5e.Data
 
 [<EntryPoint>]
 let main argv =
-  let save characterName (data: StatBlock) =
+  let save characterName (data: CharSheet) =
     use file = File.OpenWrite (characterName + ".txt")
     use writer = new StreamWriter(file)
     writer.WriteLine(JsonConvert.SerializeObject data)
   let load characterName =
     try
       let json = File.ReadAllText (characterName + ".txt")
-      JsonConvert.DeserializeObject<StatBlock>(json) |> Some
+      JsonConvert.DeserializeObject<CharSheet>(json) |> Some
     with
       exn -> None
-  let st = new StatBank(IO = { save = save; load = load }, UpdateStatus = printfn "%s\n")
+  let st = new GameState(IO = { save = save; load = load }, UpdateStatus = printfn "%s\n")
+  let resolve =
+    let r = new Random()
+    resolve (r.Next >> (+) 1)
   st.Execute(Commands.RollStats)
-  let rec commandLoop previousCommands =
+
+  let rec commandLoop (previousCommands: ParseInput option) =
     printf "> "
-    match ParseContext.Init <| Console.ReadLine() with
+    let execute commandString =
+      match commandString with
+      | CharGen.Grammar.Commands(cmds, End) ->
+        st.Execute cmds
+        commandLoop (Some commandString)
+      | Data.Grammar.Roll(roll, End) ->
+        resolve roll |> printfn "%d"
+        commandLoop (Some commandString)
+      | _ ->
+        printfn "Sorry, come again? (Type 'quit' to quit)"
+        commandLoop previousCommands
+    match ParseArgs.Init <| Console.ReadLine() with
     | Word (AnyCase("q" | "quit"), End) -> 0
-    | End -> // on ENTER, repeat
-      st.Execute (previousCommands: _ list)
+    | End when previousCommands.IsSome -> // on ENTER, repeat
+      execute previousCommands.Value
+    | v ->
+      execute v
+    | _ ->
       commandLoop previousCommands
-    | v -> match parse v with
-           | [] ->
-              printfn "Sorry, come again? (Type 'quit' to quit)"
-              commandLoop previousCommands
-           | cmds ->
-              st.Execute cmds
-              commandLoop cmds
-  commandLoop []
+  commandLoop None

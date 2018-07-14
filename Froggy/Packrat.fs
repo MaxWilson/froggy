@@ -13,16 +13,23 @@ you want to make.
 type Id = int
 type Pos = int
 type ParseResult = Success of obj * Pos | Fail
-type ParseContext =
+type ParseArgs =
   {
     input: string
     active: Set<Pos * Id> ref
     settled: Map<(Pos * Id), ParseResult> ref
+    externalContext: obj option
   }
   with
-  static member Init(input) = { input = input; active = ref Set.empty; settled = ref Map.empty }, 0
-type Input = ParseContext * Pos
-type Rule<'a> = (Input -> ('a * Input) option)
+  static member Init(input, ?externalContext) : ParseInput = { input = input; active = ref Set.empty; settled = ref Map.empty; externalContext = externalContext }, 0
+and ParseInput = ParseArgs * Pos
+type ParseRule<'a> = (ParseInput -> ('a * ParseInput) option)
+// Convenience method for defining active patterns for external context (like property definitions) to affect parsing
+let ExternalContextOf<'t> ((x, _): ParseInput) =
+  match x.externalContext with
+  | Some(:? 't as v) -> Some v
+  | _ -> None
+
 
 let nextId =
   let mutable i = 0
@@ -30,16 +37,16 @@ let nextId =
     i <- i + 1
     i
 
-let pack (rule: Rule<'t>) : Input -> ('t * Input) option =
+let pack (rule: ParseRule<'t>) : ParseRule<'t> =
   let id: Id = nextId()
-  let eval (input: Input) =
+  let eval (input: ParseInput) =
     let ctx, (pos: Pos) = input
     let active' = ctx.active.Value
     let key = (pos, id)
     ctx.active := ctx.active.Value.Remove key // mark visited
     match ctx.settled.Value.TryFind key with
     | Some(Success(v, endpos)) ->
-      Some(unbox v, ((ctx, endpos) : Input)) // cache says the biggest possible match is v, ending at endpos
+      Some(unbox v, ((ctx, endpos) : ParseInput)) // cache says the biggest possible match is v, ending at endpos
     | Some(Fail) ->
       None // cache says it will fail
     | None -> // nothing settled yet--we have to grow a match or failure
@@ -93,10 +100,10 @@ let pack (rule: Rule<'t>) : Input -> ('t * Input) option =
 
 // Here's some basic parser primitives that might be useful for anything
 
-let (|End|_|) ((ctx, ix): Input) =
+let (|End|_|) ((ctx, ix): ParseInput) =
   if ix = ctx.input.Length then Some() else None
 
-let (|Str|_|) (str: string) ((ctx, ix): Input) =
+let (|Str|_|) (str: string) ((ctx, ix): ParseInput) =
   if ix + str.Length <= ctx.input.Length && System.String.Equals(ctx.input.Substring(ix, str.Length), str, System.StringComparison.InvariantCultureIgnoreCase) then Some((ctx, ix+str.Length)) else None
 
 // set up some basic alphabets
@@ -106,7 +113,12 @@ let whitespace = Set<_>[' '; '\t'; '\n'; '\r']
 let arithmeticOperators = Set<_>['+'; '-']
 let alphanumeric = alpha + numeric
 
-let (|Chars|_|) alphabet ((ctx, ix): Input) =
+let (|Char|_|) ((ctx, ix): ParseInput) =
+  if ix < ctx.input.Length then
+    Some(ctx.input.[ix], (ctx, ix+1))
+  else None
+
+let (|Chars|_|) alphabet ((ctx, ix): ParseInput) =
   let rec seek i =
     if i < ctx.input.Length && Set.contains ctx.input.[i] alphabet then seek (i+1)
     else i
@@ -114,7 +126,7 @@ let (|Chars|_|) alphabet ((ctx, ix): Input) =
   | endpos when endpos > ix -> Some(ctx.input.Substring(ix, endpos - ix), (ctx, endpos))
   | _ -> None
 
-let (|CharsExcept|_|) exclusions ((ctx, ix): Input) =
+let (|CharsExcept|_|) exclusions ((ctx, ix): ParseInput) =
   let rec seek i =
     if i < ctx.input.Length && not (Set.contains ctx.input.[i] exclusions) then seek (i+1)
     else i
@@ -124,17 +136,17 @@ let (|CharsExcept|_|) exclusions ((ctx, ix): Input) =
 
 let (|AnyCase|) (input: string) = input.ToLowerInvariant()
 
-let (|Any|) ((ctx, ix): Input) =
+let (|Any|) ((ctx, ix): ParseInput) =
   ctx.input.Substring(ix), (ctx, ctx.input.Length)
 
 // Optional whitespace
-let (|OWS|) ((ctx, ix): Input) =
+let (|OWS|) ((ctx, ix): ParseInput) =
   let rec seek i =
     if i < ctx.input.Length && Set.contains ctx.input.[i] whitespace then seek (i+1)
     else i
   ctx, (seek ix)
 // Required whitespace
-let (|WS|_|) ((ctx, ix): Input) =
+let (|WS|_|) ((ctx, ix): ParseInput) =
   let rec seek i =
     if i < ctx.input.Length && Set.contains ctx.input.[i] whitespace then seek (i+1)
     else i
@@ -142,7 +154,7 @@ let (|WS|_|) ((ctx, ix): Input) =
   | endx when endx > ix -> Some(ctx, endx)
   | _ -> None
 
-let (|Int|_|) = function
+let (|Int|_|) = pack <| function
   | OWS(Chars numeric (v, OWS(rest))) ->
     match System.Int32.TryParse(v) with
     | true, v -> Some(v, rest)
