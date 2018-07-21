@@ -10,8 +10,9 @@
 
   <ItemGroup>
     <Compile Include="Common.fs" />
-    <Compile Include="Data.fs" />
     <Compile Include="Packrat.fs" />
+    <Compile Include="Properties.fs" />
+    <Compile Include="Data.fs" />
     <Compile Include="Execution.fs" />
   </ItemGroup>
 

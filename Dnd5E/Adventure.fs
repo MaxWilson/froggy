@@ -1,82 +1,10 @@
-﻿module Froggy.Dnd5e.Adventure
+﻿module Froggy.Adventure
 open Froggy.Common
+open Froggy.Data
+open Froggy.Data.Properties
+open Froggy.Data.AdventureData
 
-module Properties =
-  open Froggy.Dnd5e.Data
-  open Froggy.Dnd5e.Data.Roll
-
-  type PropertyName = string
-  type PropertyValue = Text of string | Number of int
-  let asNumber = function Number n -> n | v -> failwithf "Invalid cast: %A is not a number" v
-  let asText = function Text n -> n | v -> failwithf "Invalid cast: %A is not text" v
-
-  [<AbstractClass>]
-  type Property(name : PropertyName, origin : (CharSheet -> PropertyValue) option, output : (PropertyValue -> CharSheet -> CharSheet) option, fromTemplate: (MonsterTemplate -> PropertyValue) option) =
-    member this.Name = name
-    member this.Origin = origin
-    member this.Output = output
-    member this.FromTemplate = fromTemplate
-    abstract member TryParse: string -> PropertyValue option
-  type NumberProperty(name, ?origin : (CharSheet -> PropertyValue), ?output : (PropertyValue -> CharSheet -> CharSheet), ?fromTemplate: (MonsterTemplate -> PropertyValue)) =
-    inherit Property(name, origin, output, fromTemplate)
-    override this.TryParse input =
-      match System.Int32.TryParse input with
-      | true, v -> Some <| Number v
-      | _ -> None
-  type TextProperty(name, ?origin : (CharSheet -> PropertyValue), ?output : (PropertyValue -> CharSheet -> CharSheet), ?fromTemplate: (MonsterTemplate -> PropertyValue)) =
-    inherit Property(name, origin, output, fromTemplate)
-    override this.TryParse input = Some <| Text input
-
-  type Property<'t> =
-    {
-      Name: PropertyName;
-      Lens: Lens<PropertyValue, PropertyValue, 't, 't>;
-      Origin: (CharSheet -> PropertyValue) option
-      Output: (PropertyValue -> CharSheet -> CharSheet) option
-      }
-    with
-    static member New(name, lens) = { Name = name; Lens = lens; Origin = None; Output = None }
-  let Name = TextProperty("Name", origin = fun sb -> Text sb.Name)
-  let HP = NumberProperty("HP", origin = (fun sb -> Number sb.HP), fromTemplate = (fun t -> eval >> Result.getValue >> Number <| t.HP ))
-  let SP = NumberProperty("SP", origin = fun sb -> Number sb.HP)
-  let XP = NumberProperty("XP", origin = (fun sb -> Number sb.XP), output = fun pv sb -> { sb with XP = asNumber pv })
-  let Properties =
-    ([ Name; HP; SP; XP ] : Property list)
-    |> List.map (fun t -> t.Name, t)
-    |> Map.ofList
-
-open Properties
-
-module FightData =
-  open Properties
-  open Data
-
-  type Id = int
-  type StatBank = Map<Id*PropertyName, PropertyValue>
-  type Data = {
-    roster: Map<string, Id>
-    reverseRoster: Map<Id, string>
-    mapping: StatBank
-    properties: Map<string, Property>
-  }
-  with
-    static member Empty = { roster = Map.empty; reverseRoster = Map.empty; mapping = Map.empty; properties = Properties }
-
-  type Command =
-    | Set of Property * PropertyValue * Id
-    | Increment of NumberProperty * int * Id
-    | Deduct of NumberProperty * int * Id
-
-  // gets value from the user
-  let acquireValue (query: string -> string) (name: string) (prop: Property) =
-    let response = query (sprintf "What is %s's %s?" name prop.Name)
-    let rec getPropertyValue (response: string) =
-      match prop.TryParse response with
-      | Some v -> v
-      | None ->
-        getPropertyValue (query (sprintf "Sorry, I didn't understand '%s'.\nWhat is %s's %s?" response name prop.Name))
-    getPropertyValue response
-
+module AdventureData =
   let load data (statBlock:CharSheet) =
     let name = statBlock.Name
     if data.roster.ContainsKey name then
@@ -95,10 +23,6 @@ module FightData =
             | None -> mapping
           data.properties |> Map.fold mapProperty data.mapping
       }
-
-  let queryFromConsole x =
-    printfn "%s" x
-    System.Console.ReadLine()
 
   type DeferredInput<'t> =
     | Result of 't
@@ -132,39 +56,74 @@ module FightData =
     member this.Return(value) =
       Result value
 
-  let resolve = DeferredInputBuilder()
+  let adventure = DeferredInputBuilder()
 
-  let lookup query (prop: Property) id (data : Data) =
-    match Map.tryFind (id, prop.Name) data.mapping with
-    | Some(v) -> v, data
-    | None ->
-      let v = acquireValue query data.reverseRoster.[id] prop
-      v, { data with mapping = data.mapping |> Map.add (id, prop.Name) v }
-
-open Data
-open FightData
+open AdventureData
 
 let Init(pcs: CharSheet list) =
   pcs |> List.fold load Data.Empty
 
-let executeOne query cmd data =
-  match cmd with
-  | Set(prop, v, id) ->
-    { data with mapping = data.mapping |> Map.add (id, prop.Name) v }
-  | Increment(prop, v, id) ->
-    let currentValue, data = lookup query prop id data // may force a query
-    { data with mapping = data.mapping |> Map.add (id, prop.Name) (asNumber currentValue + v |> Number) }
-  | Deduct(prop, v, id) ->
-    let currentValue, data = lookup query prop id data // may force a query
-    { data with mapping = data.mapping |> Map.add (id, prop.Name) (asNumber currentValue - v |> Number) }
-let execute query cmds data =
-  cmds |> List.fold (flip (executeOne query)) data
+module Grammar =
+  open Froggy.Packrat
+  let (|Data|_|) = ExternalContextOf<Data>
+  let (|NumberProperty|_|) = function
+    | Word(word, rest) & Data(d) ->
+      match d.properties |> Map.tryFind word with
+      | Some(:? NumberProperty as prop) -> Some(prop, rest)
+      | _ -> None
+    | _ -> None
+  let (|TextProperty|_|) = function
+    | Word(word, rest) & Data(d) ->
+      match d.properties |> Map.tryFind word with
+      | Some(:? TextProperty as prop) -> Some(prop, rest)
+      | _ -> None
+    | _ -> None
+  let (|Character|_|) = function
+    | Word(word, rest) & Data(d) ->
+      match d.roster |> Map.tryFind word with
+      | Some(id) -> Some(id, rest)
+      | _ -> None
+    | _ -> None
+
+  let (|Command|_|) =
+    let commandSeparator = Microsoft.FSharp.Collections.Set<_>[';']
+    function
+    | Str "set" (Character(id, NumberProperty(propName, Int(v, rest)))) -> Some(Command.Set(HP, Number v, id), rest)
+    | Str "set" (Character(id, TextProperty(propName, CharsExcept commandSeparator (v, rest)))) -> Some(Command.Set(HP, Text v, id), rest)
+    | _ -> None
+
+  let rec (|Commands|_|) = pack <| function
+    | Commands(cmds, Str ";" (OWS(Command(c, rest)))) -> Some(cmds @ [c], rest)
+    | Command(c, rest) -> Some([c], rest)
+    | _ -> None
+
+module Execution =
+  open AdventureData
+  open Froggy.Data
+  open Froggy.Data.AdventureData
+
+  let executeOne (io: IO<_>) cmd data =
+    match cmd with
+    | Set(prop, v, id) ->
+      { data with mapping = data.mapping |> Map.add (id, prop.Name) v }
+    | Increment(prop, v, id) ->
+      let currentValue, data = lookup io.query prop id data // may force a query
+      { data with mapping = data.mapping |> Map.add (id, prop.Name) (asNumber currentValue + v |> Number) }
+    | Deduct(prop, v, id) ->
+      let currentValue, data = lookup io.query prop id data // may force a query
+      { data with mapping = data.mapping |> Map.add (id, prop.Name) (asNumber currentValue - v |> Number) }
+  let update io roll cmds state =
+    cmds |> List.fold (flip (executeOne io)) state
+let update = Execution.update
+
 let longRest data =
   let inline fullHeal (mapping: StatBank) id : StatBank =
     mapping |> Map.add (id, HP.Name) (Number <| if (id:Id) = 1 then 33 else 40) // lazy programmer
   { data with mapping = data.reverseRoster |> Map.fold (thunk2 fullHeal) data.mapping }
 
 module Fight =
+  open Execution
+  open Froggy.Common
   let r = System.Random()
   let ofAdventure (encounter: MonsterTemplate list) adventure =
     let add data (template: MonsterTemplate) =
@@ -193,12 +152,13 @@ module Fight =
             data.properties |> Map.fold mapProperty data.mapping
         }
     encounter |> List.fold add adventure
-  let run query fight =
+  let run (io: Froggy.Data.IO<_>) fight =
     let mordred = 1 // lazy programmer
     let sam = 2
-    if (lookup query XP sam fight |> fst |> asNumber) < 100 then
+    let roll = Roll.eval
+    if (lookup io.query XP sam fight |> fst |> asNumber) < 100 then
       fight
-        |> execute query
+        |> update io roll
           [
             Deduct(HP, 3, mordred)
             Deduct(HP, 8, sam)
@@ -207,7 +167,7 @@ module Fight =
           ]
     else
       fight
-        |> execute query
+        |> update io roll
           [
             Deduct(HP, 20, mordred)
             Deduct(HP, 12, sam)

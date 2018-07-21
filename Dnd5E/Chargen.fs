@@ -1,6 +1,6 @@
-module Froggy.Dnd5e.CharGen
+module Froggy.CharGen
 open Froggy.Common
-open Froggy.Dnd5e.Data
+open Froggy.Data
 
 module Commands =
   type Command =
@@ -18,7 +18,6 @@ module Commands =
     | AddNote of string
     | ClearNotes
 open Commands
-open Data
 
 let statData = [
   StatId.Str, "Strength", Lens.lens (fun x -> x.Str) (fun v x -> { x with Str = v })
@@ -90,7 +89,9 @@ module Grammar =
 
   let commandSeparator = Set<_>[';']
 
-  let (|Command|_|) = pack <| function
+  let (|Command|_|) =
+    let commandSeparator = Microsoft.FSharp.Collections.Set<_>[';']
+    pack <| function
     | Str "new" rest | Str "begin" rest -> Some(NewContext, rest)
     | Str "name" (WS (CharsExcept commandSeparator (name, rest))) -> Some( SetName <| name.Trim(), rest)
     | Words (AnyCase("rollstats" | "roll stats" | "roll"), rest) -> Some(RollStats, rest)
@@ -113,11 +114,6 @@ module Grammar =
     | Command(c, rest) -> Some([c], rest)
     | _ -> None
 
-let parse input =
-  match input with
-  | Grammar.Commands(cmds, Froggy.Packrat.End) -> cmds
-  | _ -> []
-
 module Prop =
   let Current = Lens.lens
                   (function { Current = Some(v); Party = P } -> P.[v] | { Current = None } -> CharSheet.Empty)
@@ -130,6 +126,7 @@ module Prop =
     match statData |> List.find (function (id', _, _) when id = id' -> true | _ -> false) with
     | (_, _, lens) -> Current << StatArray << lens
 open Prop
+open Froggy.Data
 
 module View =
   let statView id statBlock =
@@ -225,12 +222,6 @@ let view (state: Party) =
   @ statBlock.Notes
   |> List.filter ((<>) emptyString)
   |> String.join "\n"
-
-type IO<'t> =
-  {
-    save: string -> 't -> unit
-    load: string -> 't option
-  }
 
 let update (io: IO<_>) roll cmds state =
   let mutable state = state
@@ -364,13 +355,3 @@ let update (io: IO<_>) roll cmds state =
   state <- state |> Lens.over Prop.Current (recomputeLevelDependentProperties)
   state
 
-type GameState(roll) =
-  let mutable state = { Party.Empty with Current = Some 0; Party = [CharSheet.Empty] }
-  member val UpdateStatus = (fun (str: string) -> ()) with get, set
-  member val IO = { save = (fun _ _ -> failwith "Not supported"); load = (fun _ -> failwith "Not supported") } with get, set
-  member this.Execute(cmds: Command list) =
-    state <- update this.IO roll cmds state
-    view state |> this.UpdateStatus
-  member this.Execute(cmd) = this.Execute [cmd]
-  new() =
-    GameState(Roll.eval >> Roll.Result.getValue)

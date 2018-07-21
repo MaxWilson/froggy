@@ -46,7 +46,7 @@ let BasicUsage() =
   | YesNos(_) -> failwith "expected parse failure"
   | _ -> ()
 
-[<Fact(DisplayName="[Packrat] another test to ensure that left recursion is recognized")>]
+[<Fact(DisplayName = "[Packrat] another test to ensure that left recursion is recognized")>]
 let VerifyLeftRecursion2() =
   let rec (|Rolls|_|) = pack <| function
     | Rolls(vs, OWS( Char('+', Roll(v, rest) ))) -> Some(vs@[v], rest)

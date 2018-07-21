@@ -3,11 +3,12 @@
 
 open System
 open Froggy.Packrat
-open Froggy.Dnd5e.CharGen
+open Froggy.CharGen
 open System.IO
-open Newtonsoft.Json
-open Froggy.Dnd5e
-open Froggy.Dnd5e.Data
+open Froggy.Data
+open Microsoft.FSharpLu.Json
+open Froggy
+open Common
 
 module Roll =
   open Roll
@@ -33,44 +34,50 @@ let main argv =
   let save characterName (data: CharSheet) =
     use file = File.OpenWrite (characterName + ".txt")
     use writer = new StreamWriter(file)
-    writer.WriteLine(JsonConvert.SerializeObject data)
+    writer.WriteLine(Compact.serialize data)
   let load characterName =
     try
       let json = File.ReadAllText (characterName + ".txt")
-      JsonConvert.DeserializeObject<CharSheet>(json) |> Some
+      BackwardCompatible.deserialize<CharSheet>(json) |> Some
     with
       exn -> None
-  let st = new GameState(IO = { save = save; load = load }, UpdateStatus = printfn "%s\n")
-  st.Execute(Commands.RollStats)
 
-  let rec commandLoop (previousCommands: ParseInput option) =
+  let roll = Roll.eval >> Roll.Result.getValue
+  let queryFromConsole x =
+    printfn "%s" x
+    System.Console.ReadLine()
+  let io = { save = save; load = load; query = queryFromConsole; output = printfn "%s" }
+
+  let exec cmd (state: GameState) =
+    Game.update io roll cmd state
+
+  let initialState = GameState.Empty |> exec (Game.Commands.CharGenCommands [CharGen.Commands.Command.RollStats])
+
+  let rec commandLoop (previousCommands: ParseInput option) state =
     printf "> "
     let execute commandString =
       match commandString with
       | CharGen.Grammar.Commands(cmds, End) ->
-        st.Execute cmds
-        commandLoop (Some commandString)
+        commandLoop (Some commandString) (exec (Game.Commands.CharGenCommands cmds) state)
       | Roll.Grammar.Roll(roll, End) ->
         Roll.eval roll |> Roll.render |> printfn "%s"
-        commandLoop (Some commandString)
+        commandLoop (Some commandString) state
       | Roll.Grammar.Aggregate(rolls, End) ->
         let results = rolls |> Roll.evaluateAggregate Froggy.Common.rollOneDie
         for result in results.value do
           result |> Roll.render |> printfn "%s"
-        commandLoop (Some commandString)
+        commandLoop (Some commandString) state
       | Froggy.Packrat.Str "avg." (Roll.Grammar.Roll(roll, End))
       | Froggy.Packrat.Word(AnyCase("avg" | "average"), (Roll.Grammar.Roll(roll, End))) ->
         Roll.mean roll |> printfn "%f"
-        commandLoop (Some commandString)
+        commandLoop (Some commandString) state
       | _ ->
         printfn "Sorry, come again? (Type 'quit' to quit)"
-        commandLoop previousCommands
+        commandLoop previousCommands state
     match ParseArgs.Init <| Console.ReadLine() with
     | Word (AnyCase("q" | "quit"), End) -> 0
     | End when previousCommands.IsSome -> // on ENTER, repeat
       execute previousCommands.Value
     | v ->
       execute v
-    | _ ->
-      commandLoop previousCommands
-  commandLoop None
+  commandLoop None initialState
