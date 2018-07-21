@@ -1,81 +1,10 @@
 ﻿module Froggy.Dnd5e.Adventure
 open Froggy.Common
+open Froggy.Dnd5e.Data
+open Froggy.Dnd5e.Data.Properties
+open Froggy.Dnd5e.Data.AdventureData
 
-module Properties =
-  open Data
-
-  type PropertyName = string
-  type PropertyValue = Text of string | Number of int
-  let asNumber = function Number n -> n | v -> failwithf "Invalid cast: %A is not a number" v
-  let asText = function Text n -> n | v -> failwithf "Invalid cast: %A is not text" v
-
-  [<AbstractClass>]
-  type Property(name : PropertyName, origin : (CharSheet -> PropertyValue) option, output : (PropertyValue -> CharSheet -> CharSheet) option, fromTemplate: (MonsterTemplate -> PropertyValue) option) =
-    member this.Name = name
-    member this.Origin = origin
-    member this.Output = output
-    member this.FromTemplate = fromTemplate
-    abstract member TryParse: string -> PropertyValue option
-  type NumberProperty(name, ?origin : (CharSheet -> PropertyValue), ?output : (PropertyValue -> CharSheet -> CharSheet), ?fromTemplate: (MonsterTemplate -> PropertyValue)) =
-    inherit Property(name, origin, output, fromTemplate)
-    override this.TryParse input =
-      match System.Int32.TryParse input with
-      | true, v -> Some <| Number v
-      | _ -> None
-  type TextProperty(name, ?origin : (CharSheet -> PropertyValue), ?output : (PropertyValue -> CharSheet -> CharSheet), ?fromTemplate: (MonsterTemplate -> PropertyValue)) =
-    inherit Property(name, origin, output, fromTemplate)
-    override this.TryParse input = Some <| Text input
-
-  type Property<'t> =
-    {
-      Name: PropertyName;
-      Lens: Lens<PropertyValue, PropertyValue, 't, 't>;
-      Origin: (CharSheet -> PropertyValue) option
-      Output: (PropertyValue -> CharSheet -> CharSheet) option
-      }
-    with
-    static member New(name, lens) = { Name = name; Lens = lens; Origin = None; Output = None }
-  let Name = TextProperty("Name", origin = fun sb -> Text sb.Name)
-  let HP = NumberProperty("HP", origin = (fun sb -> Number sb.HP), fromTemplate = (fun t -> resolve (random.Next >> (+) 1) >> Number <| t.HP ))
-  let SP = NumberProperty("SP", origin = fun sb -> Number sb.HP)
-  let XP = NumberProperty("XP", origin = (fun sb -> Number sb.XP), output = fun pv sb -> { sb with XP = asNumber pv })
-  let Properties =
-    ([ Name; HP; SP; XP ] : Property list)
-    |> List.map (fun t -> t.Name, t)
-    |> Map.ofList
-
-open Properties
-
-module FightData =
-  open Properties
-  open Data
-
-  type Id = int
-  type StatBank = Map<Id*PropertyName, PropertyValue>
-  type Data = {
-    roster: Map<string, Id>
-    reverseRoster: Map<Id, string>
-    mapping: StatBank
-    properties: Map<string, Property>
-  }
-  with
-    static member Empty = { roster = Map.empty; reverseRoster = Map.empty; mapping = Map.empty; properties = Properties }
-
-  type Command =
-    | Set of Property * PropertyValue * Id
-    | Increment of NumberProperty * int * Id
-    | Deduct of NumberProperty * int * Id
-
-  // gets value from the user
-  let acquireValue (query: string -> string) (name: string) (prop: Property) =
-    let response = query (sprintf "What is %s's %s?" name prop.Name)
-    let rec getPropertyValue (response: string) =
-      match prop.TryParse response with
-      | Some v -> v
-      | None ->
-        getPropertyValue (query (sprintf "Sorry, I didn't understand '%s'.\nWhat is %s's %s?" response name prop.Name))
-    getPropertyValue response
-
+module AdventureData =
   let load data (statBlock:CharSheet) =
     let name = statBlock.Name
     if data.roster.ContainsKey name then
@@ -133,15 +62,7 @@ module FightData =
 
   let resolve = DeferredInputBuilder()
 
-  let lookup query (prop: Property) id (data : Data) =
-    match Map.tryFind (id, prop.Name) data.mapping with
-    | Some(v) -> v, data
-    | None ->
-      let v = acquireValue query data.reverseRoster.[id] prop
-      v, { data with mapping = data.mapping |> Map.add (id, prop.Name) v }
-
-open Data
-open FightData
+open AdventureData
 
 let Init(pcs: CharSheet list) =
   pcs |> List.fold load Data.Empty

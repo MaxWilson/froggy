@@ -24,7 +24,7 @@ let VerifyStatBonus() =
 let UsageTest() =
   let output = ref ""
   let mutable i = 11
-  let ctx = GameState((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
+  let ctx = GameStateWrapper((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
   let proc cmd =
     let cmds = ParseArgs.Init cmd |> Froggy.Dnd5e.CharGen.parse
     Assert.NotEmpty cmds
@@ -83,7 +83,7 @@ let UsageTest() =
 let TestSwapAttributes() =
   let output = ref ""
   let mutable i = 11
-  let ctx = GameState((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
+  let ctx = GameStateWrapper((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
   let proc cmd =
     let cmds = ParseArgs.Init cmd |> Froggy.Dnd5e.CharGen.parse
     Assert.NotEmpty(cmds)
@@ -109,7 +109,7 @@ let TestSwapAttributes() =
 let TestClassLevels() =
   let output = ref ""
   let mutable i = 11
-  let ctx = GameState((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
+  let ctx = GameStateWrapper((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
   let proc cmd =
     let cmds = ParseArgs.Init cmd |> Froggy.Dnd5e.CharGen.parse
     Assert.NotEmpty(cmds)
@@ -136,7 +136,7 @@ let TestClassLevels() =
 let TestSaveLoad() =
   let output = ref ""
   let mutable i = 11
-  let ctx = GameState((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
+  let ctx = GameStateWrapper((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
   let proc cmd =
     let cmds = ParseArgs.Init cmd |> Froggy.Dnd5e.CharGen.parse
     Assert.NotEmpty(cmds)
@@ -170,7 +170,7 @@ let TestSaveLoad() =
 let CornerCasees() =
   let output = ref ""
   let mutable i = 11
-  let ctx = GameState((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
+  let ctx = GameStateWrapper((fun _ -> i <- i + 1; i), UpdateStatus = fun summary -> output := summary)
   let proc cmd =
     let cmds = ParseArgs.Init cmd |> Froggy.Dnd5e.CharGen.parse
     Assert.NotEmpty(cmds)

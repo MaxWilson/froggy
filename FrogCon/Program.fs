@@ -21,7 +21,7 @@ let main argv =
       JsonConvert.DeserializeObject<CharSheet>(json) |> Some
     with
       exn -> None
-  let st = new GameState(IO = { save = save; load = load }, UpdateStatus = printfn "%s\n")
+  let st = new GameStateWrapper(IO = { save = save; load = load }, UpdateStatus = printfn "%s\n")
   let resolve =
     let r = new Random()
     resolve (r.Next >> (+) 1)

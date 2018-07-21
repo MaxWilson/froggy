@@ -5,10 +5,10 @@ open Froggy.Packrat
 open Froggy.Dnd5e.Data
 open Froggy.Common
 open Froggy.Dnd5e
-open Froggy.Dnd5e.Adventure
-open Froggy.Dnd5e.Adventure.FightData
-open Froggy.Dnd5e.Adventure.Properties
+open Froggy.Dnd5e.Data.AdventureData
+open Froggy.Dnd5e.Data.Properties
 open Froggy.Dnd5e.Encounter
+open Froggy.Dnd5e.Adventure
 
 let pcs =
   [

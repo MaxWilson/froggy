@@ -363,7 +363,7 @@ let update (io: IO<_>) roll cmds state =
   state <- state |> Lens.over Prop.Current (recomputeLevelDependentProperties)
   state
 
-type GameState(roll) =
+type GameStateWrapper(roll) =
   let mutable state = { Party.Empty with Current = Some 0; Party = [CharSheet.Empty] }
   member val UpdateStatus = (fun (str: string) -> ()) with get, set
   member val IO = { save = (fun _ _ -> failwith "Not supported"); load = (fun _ -> failwith "Not supported") } with get, set
@@ -372,4 +372,4 @@ type GameState(roll) =
     view state |> this.UpdateStatus
   member this.Execute(cmd) = this.Execute [cmd]
   new() =
-    GameState(resolve <| fun x -> 1 + random.Next(x))
+    GameStateWrapper(resolve <| fun x -> 1 + random.Next(x))
