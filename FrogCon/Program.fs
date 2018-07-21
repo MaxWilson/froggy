@@ -46,6 +46,4 @@ let main argv =
       execute previousCommands.Value
     | v ->
       execute v
-    | _ ->
-      commandLoop previousCommands
   commandLoop None
