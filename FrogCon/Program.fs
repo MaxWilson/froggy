@@ -5,20 +5,23 @@ open System
 open Froggy.Packrat
 open Froggy.Dnd5e.CharGen
 open System.IO
-open Newtonsoft.Json
 open Froggy.Dnd5e
 open Froggy.Dnd5e.Data
+open Microsoft.FSharpLu.Json
+open Newtonsoft.Json
+
+Compact.Internal.Settings.settings.NullValueHandling <- true
 
 [<EntryPoint>]
 let main argv =
   let save characterName (data: CharSheet) =
     use file = File.OpenWrite (characterName + ".txt")
     use writer = new StreamWriter(file)
-    writer.WriteLine(JsonConvert.SerializeObject data)
+    writer.WriteLine(Compact.serialize data)
   let load characterName =
     try
       let json = File.ReadAllText (characterName + ".txt")
-      JsonConvert.DeserializeObject<CharSheet>(json) |> Some
+      BackwardCompatible.deserialize<CharSheet>(json) |> Some
     with
       exn -> None
   let st = new GameStateWrapper(IO = { save = save; load = load }, UpdateStatus = printfn "%s\n")
