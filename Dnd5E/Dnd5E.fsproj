@@ -13,6 +13,7 @@
     <Compile Include="CharGen.fs" />
     <Compile Include="Adventure.fs" />
     <Compile Include="Encounter.fs" />
+    <Compile Include="Game.fs" />
     <None Include="Script1.fsx" />
   </ItemGroup>
 

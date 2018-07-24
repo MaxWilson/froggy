@@ -9,6 +9,7 @@ open Froggy.Dnd5e.Data.AdventureData
 open Froggy.Dnd5e.Data.Properties
 open Froggy.Dnd5e.Encounter
 open Froggy.Dnd5e.Adventure
+open CharGen
 
 let pcs =
   [
@@ -95,4 +96,8 @@ let UsageTest() =
   Assert.Equal(40, (lookup HP sam adv))
   Assert.Equal(300, (lookup XP mordred adv))
   Assert.Equal(200, (lookup XP sam adv))
+  ()
+
+[<Fact>]
+let UsageTest2() =
   ()

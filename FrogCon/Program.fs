@@ -9,8 +9,7 @@ open Froggy.Dnd5e
 open Froggy.Dnd5e.Data
 open Microsoft.FSharpLu.Json
 open Newtonsoft.Json
-
-Compact.Internal.Settings.settings.NullValueHandling <- true
+open Froggy.Dnd5e.Game
 
 [<EntryPoint>]
 let main argv =

@@ -113,11 +113,6 @@ module Grammar =
     | Command(c, rest) -> Some([c], rest)
     | _ -> None
 
-let parse input =
-  match input with
-  | Grammar.Commands(cmds, Froggy.Packrat.End) -> cmds
-  | _ -> []
-
 module Prop =
   let Current = Lens.lens
                   (function { Current = Some(v); Party = P } -> P.[v] | { Current = None } -> CharSheet.Empty)
@@ -363,13 +358,3 @@ let update (io: IO<_>) roll cmds state =
   state <- state |> Lens.over Prop.Current (recomputeLevelDependentProperties)
   state
 
-type GameStateWrapper(roll) =
-  let mutable state = { Party.Empty with Current = Some 0; Party = [CharSheet.Empty] }
-  member val UpdateStatus = (fun (str: string) -> ()) with get, set
-  member val IO = { save = (fun _ _ -> failwith "Not supported"); load = (fun _ -> failwith "Not supported") } with get, set
-  member this.Execute(cmds: Command list) =
-    state <- update this.IO roll cmds state
-    view state |> this.UpdateStatus
-  member this.Execute(cmd) = this.Execute [cmd]
-  new() =
-    GameStateWrapper(resolve <| fun x -> 1 + random.Next(x))
