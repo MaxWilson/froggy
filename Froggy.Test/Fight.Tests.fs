@@ -100,4 +100,20 @@ let UsageTest() =
 
 [<Fact>]
 let UsageTest2() =
+  let parse input =
+    match input with
+    | Froggy.Dnd5e.CharGen.Grammar.Commands(cmds, Froggy.Packrat.End) -> cmds
+    | _ -> []
+
+  let io = { save = thunk1 failwith "Not implemented"; load = thunk1 failwith "Not implemented" }
+
+  let mutable output = ""
+  let updateStatus = fun summary -> output <- summary
+  let mutable state = { Party.Empty with Current = Some 0; Party = [CharSheet.Empty] }
+  let roll = (fun _ -> 10)
+  let proc cmd =
+    let cmds = ParseArgs.Init cmd |> parse
+    Assert.NotEmpty cmds
+    state <- update io roll cmds state
+    view state |> updateStatus
   ()

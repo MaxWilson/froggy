@@ -136,3 +136,39 @@ module Fight =
           ]
 
   let update fight adventure = fight
+
+module Grammar =
+  open Froggy.Packrat
+  let (|Data|_|) = ExternalContextOf<Data>
+  let (|NumberProperty|_|) = function
+    | Word(word, rest) & Data(d) ->
+      match d.properties |> Map.tryFind word with
+      | Some(:? NumberProperty as prop) -> Some(prop, rest)
+      | _ -> None
+    | _ -> None
+  let (|TextProperty|_|) = function
+    | Word(word, rest) & Data(d) ->
+      match d.properties |> Map.tryFind word with
+      | Some(:? TextProperty as prop) -> Some(prop, rest)
+      | _ -> None
+    | _ -> None
+  let (|Character|_|) = function
+    | Word(word, rest) & Data(d) ->
+      match d.roster |> Map.tryFind word with
+      | Some(id) -> Some(id, rest)
+      | _ -> None
+    | _ -> None
+
+  let (|Command|_|) =
+    let commandSeparator = Microsoft.FSharp.Collections.Set<_>[';']
+    function
+    | Str "set" (Character(id, NumberProperty(propName, Int(v, rest)))) -> Some(Command.Set(HP, Number v, id), rest)
+    | Str "set" (Character(id, TextProperty(propName, CharsExcept commandSeparator (v, rest)))) -> Some(Command.Set(HP, Text v, id), rest)
+    | _ -> None
+
+  let rec (|Commands|_|) = pack <| function
+    | Commands(cmds, Str ";" (OWS(Command(c, rest)))) -> Some(cmds @ [c], rest)
+    | Command(c, rest) -> Some([c], rest)
+    | _ -> None
+
+let update query roll cmds state =

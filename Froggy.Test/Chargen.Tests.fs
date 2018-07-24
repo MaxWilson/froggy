@@ -11,7 +11,7 @@ open Froggy
 
 let parse input =
   match input with
-  | Grammar.Commands(cmds, Froggy.Packrat.End) -> cmds
+  | Froggy.Dnd5e.CharGen.Grammar.Commands(cmds, Froggy.Packrat.End) -> cmds
   | _ -> []
 
 let io = { save = thunk1 failwith "Not implemented"; load = thunk1 failwith "Not implemented" }

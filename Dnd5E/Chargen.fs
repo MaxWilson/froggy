@@ -90,7 +90,9 @@ module Grammar =
 
   let commandSeparator = Set<_>[';']
 
-  let (|Command|_|) = pack <| function
+  let (|Command|_|) =
+    let commandSeparator = Microsoft.FSharp.Collections.Set<_>[';']
+    pack <| function
     | Str "new" rest | Str "begin" rest -> Some(NewContext, rest)
     | Str "name" (WS (CharsExcept commandSeparator (name, rest))) -> Some( SetName <| name.Trim(), rest)
     | Words (AnyCase("rollstats" | "roll stats" | "roll"), rest) -> Some(RollStats, rest)

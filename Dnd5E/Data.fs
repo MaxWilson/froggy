@@ -231,4 +231,6 @@ module AdventureData =
     | Deduct of NumberProperty * int * Id
 
 type GameState = { party: Party; adventure: AdventureData.Data option }
+  with
+  static member Empty = { party = { Party.Empty with Current = Some 0; Party = [CharSheet.Empty] }; adventure = None }
 

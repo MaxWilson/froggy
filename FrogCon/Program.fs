@@ -8,8 +8,8 @@ open System.IO
 open Froggy.Dnd5e
 open Froggy.Dnd5e.Data
 open Microsoft.FSharpLu.Json
-open Newtonsoft.Json
-open Froggy.Dnd5e.Game
+open Froggy
+open Common
 
 [<EntryPoint>]
 let main argv =
@@ -23,17 +23,31 @@ let main argv =
       BackwardCompatible.deserialize<CharSheet>(json) |> Some
     with
       exn -> None
-  let st = new GameStateWrapper(IO = { save = save; load = load }, UpdateStatus = printfn "%s\n")
-  let resolve =
-    let r = new Random()
-    resolve (r.Next >> (+) 1)
-  st.Execute(Commands.RollStats)
+  let io = { save = save; load = load }
+  let roll = resolve <| (random.Next >> (+) 1)
+  let exec cmds (state: GameState) =
+    match cmds with
+    | Game.Commands.CharGenCommands cmds ->
+      let state = { state with party = CharGen.update io roll cmds state.party }
+      view state.party |> printfn "%s\n"
+      state
+    | Game.Commands.AdventureCommands cmds ->
+      let adventure =
+        state.adventure
+        |> Option.defaultWith
+          (fun _ ->
+            Adventure.Init state.party.Party)
+      let state = Adventure.update io roll cmds state
+      view state |> printfn "%s\n"
+      state
+
+  let initialState = GameState.Empty |> exec (Game.Commands.CharGenCommands [CharGen.Commands.Command.RollStats])
 
   let rec commandLoop (previousCommands: ParseInput option) =
     printf "> "
     let execute commandString =
       match commandString with
-      | CharGen.Grammar.Commands(cmds, End) ->
+      | Game.Grammar.Commands(cmds, End) ->
         st.Execute cmds
         commandLoop (Some commandString)
       | Data.Grammar.Roll(roll, End) ->
