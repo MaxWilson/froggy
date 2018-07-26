@@ -1,20 +1,20 @@
-﻿module Froggy.Dnd5e.ChargenTests
+﻿module Froggy.ChargenTests
 
 open Xunit
 
 open Froggy.Common
 open Froggy.Packrat
-open Froggy.Dnd5e.CharGen
-open Froggy.Dnd5e.Data
+open Froggy.Data
 open System
 open Froggy
+open Froggy.CharGen
 
 let parse input =
   match input with
-  | Froggy.Dnd5e.CharGen.Grammar.Commands(cmds, Froggy.Packrat.End) -> cmds
+  | Froggy.CharGen.Grammar.Commands(cmds, Froggy.Packrat.End) -> cmds
   | _ -> []
 
-let io = { save = thunk1 failwith "Not implemented"; load = thunk1 failwith "Not implemented" }
+let io = IO<CharSheet>.Fail
 
 [<Fact>]
 let VerifyStatBonus() =
@@ -161,7 +161,7 @@ let TestSaveLoad() =
   let roll = (fun _ -> i <- i + 1; i)
   let mutable jsonFile = CharSheet.Empty
   let mutable fileName = ""
-  let mutable io = { save = (fun fileName' data -> fileName <- fileName'; jsonFile <- data); load = (fun fileName -> if fileName = "Mary Sue" then Some ({CharSheet.Empty with Name = "Mary Sue"; Stats = { Str = 18; Dex = 18; Con = 18; Int = 18; Wis = 18; Cha = 22 }}) else None) }
+  let mutable io = { io with save = (fun fileName' data -> fileName <- fileName'; jsonFile <- data); load = (fun fileName -> if fileName = "Mary Sue" then Some ({CharSheet.Empty with Name = "Mary Sue"; Stats = { Str = 18; Dex = 18; Con = 18; Int = 18; Wis = 18; Cha = 22 }}) else None) }
   let proc cmd =
     let cmds = ParseArgs.Init cmd |> parse
     Assert.NotEmpty cmds
@@ -199,7 +199,7 @@ let CornerCasees() =
   let roll = (fun _ -> i <- i + 1; i)
   let mutable jsonFile = CharSheet.Empty
   let mutable fileName = ""
-  let mutable io = { save = (fun fileName' data -> fileName <- fileName'; jsonFile <- data); load = (fun fileName -> if fileName = "Mary Sue" then Some ({CharSheet.Empty with Name = "Mary Sue"; Stats = { Str = 18; Dex = 18; Con = 18; Int = 18; Wis = 18; Cha = 22 }}) else None) }
+  let mutable io = { io with save = (fun fileName' data -> fileName <- fileName'; jsonFile <- data); load = (fun fileName -> if fileName = "Mary Sue" then Some ({CharSheet.Empty with Name = "Mary Sue"; Stats = { Str = 18; Dex = 18; Con = 18; Int = 18; Wis = 18; Cha = 22 }}) else None) }
   let proc cmd =
     let cmds = ParseArgs.Init cmd |> parse
     Assert.NotEmpty cmds

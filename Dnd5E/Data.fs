@@ -1,5 +1,5 @@
 ﻿/// Shared data structures, especially ones that get serialized to JSON
-module Froggy.Dnd5e.Data
+module Froggy.Data
 
 open Froggy
 open Froggy.Common

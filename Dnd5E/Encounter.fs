@@ -1,8 +1,8 @@
 ﻿// Encounter generation tools and data
-module Froggy.Dnd5e.Encounter
+module Froggy.Encounter
 
 open Froggy.Common
-open Froggy.Dnd5e.Data
+open Froggy.Data
 
 let orcNames = [|"Gronk"; "Spud"; "Thud"; "Narmsh"; "Bargle"; "Quonk"; "Varak"; "Skorn"|]
 let templates = [

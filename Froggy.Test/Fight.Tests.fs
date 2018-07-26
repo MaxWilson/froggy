@@ -1,15 +1,16 @@
-﻿module Froggy.Dnd5e.FightTests
+﻿module Froggy.FightTests
 
 open Xunit
 open Froggy.Packrat
-open Froggy.Dnd5e.Data
+open Froggy.Data
 open Froggy.Common
-open Froggy.Dnd5e
-open Froggy.Dnd5e.Data.AdventureData
-open Froggy.Dnd5e.Data.Properties
-open Froggy.Dnd5e.Encounter
-open Froggy.Dnd5e.Adventure
+open Froggy.Data.Properties
+open Froggy.Encounter
+open Froggy.Adventure
+open Froggy.Adventure.AdventureData
 open CharGen
+open Froggy.Data
+open Data
 
 let pcs =
   [
@@ -36,6 +37,8 @@ let pcs =
     Notes = ["Samwise is very loyal to Mordred"; "Lawful good"]
   }
   ]
+
+let io = IO<_>.Fail
 
 let DieInputs =
   [
@@ -72,21 +75,20 @@ let UsageTest() =
   let adv = Adventure.Init pcs
   let mordred, sam = pcs |> List.map (fun pc -> adv.roster.[pc.Name]) |> function [a;b] -> a,b | _ -> failwith "match failure!"
   let fight = adv |> Fight.ofAdventure (encounter ["orc", 2])
-  let enemyId fight = fight.roster |> Seq.pick (function KeyValue(name, id) when id <> mordred && id <> sam -> Some id | _ -> None)
-  let query = (failwithf "Lookup of %s not implemented")
+  let enemyId (fight: AdventureData.Data) = fight.roster |> Seq.pick (function KeyValue(name, id) when id <> mordred && id <> sam -> Some id | _ -> None)
   let lookup (property: Property) id data =
-    lookup query property id data |> fst |> asNumber
+    AdventureData.lookup io.query property id data |> fst |> asNumber
   Assert.Equal(15, (lookup HP (enemyId fight) fight))
   let adv =
     fight
-    |> Fight.run query
+    |> Fight.run io
     |> flip Fight.update adv
   Assert.Equal(30, (lookup HP mordred adv))
   Assert.Equal(32, (lookup HP sam adv))
   Assert.Equal(200, (lookup XP mordred adv))
   Assert.Equal(100, (lookup XP sam adv))
   let fight = adv |> Fight.ofAdventure (encounter ["orc", 2])
-  let adv = Fight.run query fight |> flip Fight.update adv
+  let adv = Fight.run io fight |> flip Fight.update adv
   Assert.Equal(10, (lookup HP mordred adv))
   Assert.Equal(20, (lookup HP sam adv))
   Assert.Equal(300, (lookup XP mordred adv))
@@ -102,10 +104,8 @@ let UsageTest() =
 let UsageTest2() =
   let parse input =
     match input with
-    | Froggy.Dnd5e.CharGen.Grammar.Commands(cmds, Froggy.Packrat.End) -> cmds
+    | Froggy.CharGen.Grammar.Commands(cmds, Froggy.Packrat.End) -> cmds
     | _ -> []
-
-  let io = { save = thunk1 failwith "Not implemented"; load = thunk1 failwith "Not implemented" }
 
   let mutable output = ""
   let updateStatus = fun summary -> output <- summary

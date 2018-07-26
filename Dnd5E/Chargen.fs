@@ -1,6 +1,6 @@
-module Froggy.Dnd5e.CharGen
+module Froggy.CharGen
 open Froggy.Common
-open Froggy.Dnd5e.Data
+open Froggy.Data
 
 module Commands =
   type Command =
@@ -18,7 +18,6 @@ module Commands =
     | AddNote of string
     | ClearNotes
 open Commands
-open Data
 
 let statData = [
   StatId.Str, "Strength", Lens.lens (fun x -> x.Str) (fun v x -> { x with Str = v })
@@ -127,6 +126,7 @@ module Prop =
     match statData |> List.find (function (id', _, _) when id = id' -> true | _ -> false) with
     | (_, _, lens) -> Current << StatArray << lens
 open Prop
+open Froggy.Data
 
 module View =
   let statView id statBlock =
@@ -222,12 +222,6 @@ let view (state: Party) =
   @ statBlock.Notes
   |> List.filter ((<>) emptyString)
   |> String.join "\n"
-
-type IO<'t> =
-  {
-    save: string -> 't -> unit
-    load: string -> 't option
-  }
 
 let update (io: IO<_>) roll cmds state =
   let mutable state = state

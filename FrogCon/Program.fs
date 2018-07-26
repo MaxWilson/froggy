@@ -3,10 +3,9 @@
 
 open System
 open Froggy.Packrat
-open Froggy.Dnd5e.CharGen
+open Froggy.CharGen
 open System.IO
-open Froggy.Dnd5e
-open Froggy.Dnd5e.Data
+open Froggy.Data
 open Microsoft.FSharpLu.Json
 open Froggy
 open Common
@@ -23,43 +22,33 @@ let main argv =
       BackwardCompatible.deserialize<CharSheet>(json) |> Some
     with
       exn -> None
-  let io = { save = save; load = load }
   let roll = resolve <| (random.Next >> (+) 1)
-  let exec cmds (state: GameState) =
-    match cmds with
-    | Game.Commands.CharGenCommands cmds ->
-      let state = { state with party = CharGen.update io roll cmds state.party }
-      view state.party |> printfn "%s\n"
-      state
-    | Game.Commands.AdventureCommands cmds ->
-      let adventure =
-        state.adventure
-        |> Option.defaultWith
-          (fun _ ->
-            Adventure.Init state.party.Party)
-      let state = Adventure.update io roll cmds state
-      view state |> printfn "%s\n"
-      state
+  let queryFromConsole x =
+    printfn "%s" x
+    System.Console.ReadLine()
+  let io = { save = save; load = load; query = queryFromConsole; output = printfn "%s" }
+
+  let exec cmd (state: GameState) =
+    Game.update io roll cmd state
 
   let initialState = GameState.Empty |> exec (Game.Commands.CharGenCommands [CharGen.Commands.Command.RollStats])
 
-  let rec commandLoop (previousCommands: ParseInput option) =
+  let rec commandLoop (previousCommands: ParseInput option) state =
     printf "> "
     let execute commandString =
       match commandString with
       | Game.Grammar.Commands(cmds, End) ->
-        st.Execute cmds
-        commandLoop (Some commandString)
-      | Data.Grammar.Roll(roll, End) ->
-        resolve roll |> printfn "%d"
-        commandLoop (Some commandString)
+        commandLoop (Some commandString) (exec cmds state)
+      | Data.Grammar.Roll(r, End) ->
+        roll r |> printfn "%d"
+        commandLoop (Some commandString) state
       | _ ->
         printfn "Sorry, come again? (Type 'quit' to quit)"
-        commandLoop previousCommands
+        commandLoop previousCommands state
     match ParseArgs.Init <| Console.ReadLine() with
     | Word (AnyCase("q" | "quit"), End) -> 0
     | End when previousCommands.IsSome -> // on ENTER, repeat
       execute previousCommands.Value
     | v ->
       execute v
-  commandLoop None
+  commandLoop None initialState
