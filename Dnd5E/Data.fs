@@ -175,15 +175,6 @@ module Properties =
     inherit Property(name, origin, output, fromTemplate)
     override this.TryParse input = Some <| Text input
 
-  type Property<'t> =
-    {
-      Name: PropertyName;
-      Lens: Lens<PropertyValue, PropertyValue, 't, 't>;
-      Origin: (CharSheet -> PropertyValue) option
-      Output: (PropertyValue -> CharSheet -> CharSheet) option
-      }
-    with
-    static member New(name, lens) = { Name = name; Lens = lens; Origin = None; Output = None }
   let Name = TextProperty("Name", origin = fun sb -> Text sb.Name)
   let HP = NumberProperty("HP", origin = (fun sb -> Number sb.HP), fromTemplate = (fun t -> resolve (random.Next >> (+) 1) >> Number <| t.HP ))
   let SP = NumberProperty("SP", origin = fun sb -> Number sb.HP)
