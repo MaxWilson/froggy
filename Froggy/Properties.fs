@@ -6,13 +6,11 @@ module Froggy.Properties
 #endif
   open Froggy.Common
 
-  type PropertyName = string
   type RoundNumber = int
   type PropertyScope<'store> = Permanent | Lasting | Temporary of ('store -> bool)
   type PropertyValueComponent<'store, 'args, 't> = Value of 't | Transform of ('t -> 't) | Computed of ('args -> 'store -> 't)
   type PropertyValue<'store, 'args, 't> = PropertyValue of (PropertyScope<'store> * PropertyValueComponent<'store, 'args, 't>) list
-  type ParentLens<'t> = Lens<'t, 't option, 't option, 't>
-  let computeValue (scopeFilter: PropertyScope<_> -> bool) (getParentLens: ParentLens<'store> option) (args: 'args) (store: 'store) (PropertyValue(vs): PropertyValue<'store, 'args, 't>) =
+  let computeValue (scopeFilter: PropertyScope<_> -> bool) (parentLens: Lens<'store, 'store option, 'store option, 'store>) (args: 'args) (store: 'store) (PropertyValue(vs): PropertyValue<'store, 'args, 't>) =
     let rec applyValue v rest =
       match v with
       | Value v -> v
@@ -34,8 +32,8 @@ module Froggy.Properties
           eval rest
         | v -> matchfail v
     eval vs
-  let computePermanentValue getParentLens = computeValue (function Permanent -> true | _ -> false) getParentLens
-  let computeCurrentValue getParentLens = computeValue (thunk true) getParentLens
+  let computePermanentValue parentLens args store pv = computeValue (function Permanent -> true | _ -> false) parentLens args store pv
+  let computeCurrentValue parentLens args store pv = computeValue (thunk true) parentLens args store pv
 
   type MyScope = { parent: MyScope option; data: Map<string, string> }
   let parent = { parent = None; data = ["HP", "330"; "Name", "Remorhaz"] |> Map.ofSeq }
@@ -45,6 +43,7 @@ module Froggy.Properties
   Lens.view l data
   Lens.over l (Option.map <| fun p -> { p with data = p.data |> Map.add "Class" "Monster"}) data
 
+  type PropertyName = string
   module SimpleProperties =
     type PropertyValueUnion = Text of string | Number of int
     let asNumber = function Number n -> n | v -> failwithf "Invalid cast: %A is not a number" v

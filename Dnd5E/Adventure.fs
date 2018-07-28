@@ -100,6 +100,7 @@ module Grammar =
 module Execution =
   open AdventureData
   open Froggy.Data
+  open Froggy.Data.AdventureData
 
   let executeOne (io: IO<_>) cmd data =
     match cmd with
