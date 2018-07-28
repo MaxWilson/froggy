@@ -5,21 +5,21 @@ let thunk x _ = x
 let betweenInclusive bound1 bound2 x = (min bound1 bound2) <= x && x <= (max bound1 bound2)
 let thunk1 f x _ = f x
 let thunk2 f x y _ = f x y
-
+let matchfail v = failwithf "No match found for %A" v
 
 // Lens code based on http://www.fssnip.net/7Pk/title/Polymorphic-lenses by Vesa Karvonen
 
-type Lens<'s,'t,'a,'b> = ('a -> Option<'b>) -> 's -> Option<'t>
+type Lens<'InState,'ValGet,'ValSet,'OutState> = ('ValGet -> Option<'ValSet>) -> 'InState -> Option<'OutState>
 module Lens =
-  let view l s =
+  let view (l: Lens<'InState,'ValGet,'ValSet,'OutState>) s =
     let r = ref Unchecked.defaultof<_>
     s |> l (fun a -> r := a; None) |> ignore
     !r
 
-  let over l f =
+  let over (l: Lens<'InState,'ValGet,'ValSet,'OutState>) f =
     l (f >> Some) >> function Some t -> t | _ -> failwith "Impossible"
-  let set l b = over l <| fun _ -> b
-  let lens get set : Lens<_, _, _, _> =
+  let set (l: Lens<'InState,'ValGet,'ValSet,'OutState>) b = over l <| fun _ -> b
+  let lens get set : Lens<'InState,'ValGet,'ValSet,'OutState> =
     fun f s ->
       ((get s |> f : Option<_>) |> Option.map (fun f -> set f s))
 
