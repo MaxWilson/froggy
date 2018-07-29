@@ -35,39 +35,3 @@ module Froggy.Properties
   let computePermanentValue parentLens args store pv = computeValue (function Permanent -> true | _ -> false) parentLens args store pv
   let computeCurrentValue parentLens args store pv = computeValue (thunk true) parentLens args store pv
 
-  type MyScope = { parent: MyScope option; data: Map<string, string> }
-  let parent = { parent = None; data = ["HP", "330"; "Name", "Remorhaz"] |> Map.ofSeq }
-  let data = { parent = Some parent; data = ["X", "32"; "Y", "-27"; "Name", "Reince"] |> Map.ofSeq }
-  let getParent = Lens.lens (function { parent = x } -> x | v -> matchfail v) (fun v x -> { x with parent = v })
-  let l = getParent
-  Lens.view l data
-  Lens.over l (Option.map <| fun p -> { p with data = p.data |> Map.add "Class" "Monster"}) data
-
-  type PropertyName = string
-  module SimpleProperties =
-    type PropertyValueUnion = Text of string | Number of int
-    let asNumber = function Number n -> n | v -> failwithf "Invalid cast: %A is not a number" v
-    let asText = function Text n -> n | v -> failwithf "Invalid cast: %A is not text" v
-
-    [<AbstractClass>]
-    type Property(name : PropertyName) =
-      member this.Name = name
-      abstract member TryParse: string -> PropertyValueUnion option
-    type NumberProperty(name) =
-      inherit Property(name)
-      override this.TryParse input =
-        match System.Int32.TryParse input with
-        | true, v -> Some <| Number v
-        | _ -> None
-    type TextProperty(name) =
-      inherit Property(name)
-      override this.TryParse input = Some <| Text input
-
-    let Name = TextProperty("Name")
-    let HP = NumberProperty("HP")
-    let SP = NumberProperty("SP")
-    let XP = NumberProperty("XP")
-    let Properties =
-      ([ Name; HP; SP; XP ] : Property list)
-      |> List.map (fun t -> t.Name, t)
-      |> Map.ofList

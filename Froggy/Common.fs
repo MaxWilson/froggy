@@ -10,6 +10,8 @@ let matchfail v = failwithf "No match found for %A" v
 // Lens code based on http://www.fssnip.net/7Pk/title/Polymorphic-lenses by Vesa Karvonen
 
 type Lens<'InState,'ValGet,'ValSet,'OutState> = ('ValGet -> Option<'ValSet>) -> 'InState -> Option<'OutState>
+type SimpleLens<'Outer, 'Inner> = Lens<'Outer, 'Inner, 'Inner, 'Outer>
+type RecursiveOptionLens<'t> = SimpleLens<'t, 't option>
 module Lens =
   let view (l: Lens<'InState,'ValGet,'ValSet,'OutState>) s =
     let r = ref Unchecked.defaultof<_>

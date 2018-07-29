@@ -27,9 +27,37 @@ type Data<'propertyMetadataType, 'propertyValueType> = {
 }
 
 let empty = { roster = Map.empty; reverseRoster = Map.empty; mapping = Map.empty; properties = Map.empty; parentScope = None }
-let getParent = Lens.lens (fun x -> x.parent) (fun v x -> { x with parent = v })
+let getParent<'mt, 't> : RecursiveOptionLens<Data<'mt, 't>> = Lens.lens (fun x -> x.parentScope) (fun v x -> { x with parentScope = v })
 
-open Properties.SimpleProperties
+module SimpleProperties =
+  type PropertyValueUnion = Text of string | Number of int
+  let asNumber = function Number n -> n | v -> failwithf "Invalid cast: %A is not a number" v
+  let asText = function Text n -> n | v -> failwithf "Invalid cast: %A is not text" v
+
+  [<AbstractClass>]
+  type Property(name : PropertyName) =
+    member this.Name = name
+    abstract member TryParse: string -> PropertyValueUnion option
+  type NumberProperty(name) =
+    inherit Property(name)
+    override this.TryParse input =
+      match System.Int32.TryParse input with
+      | true, v -> Some <| Number v
+      | _ -> None
+  type TextProperty(name) =
+    inherit Property(name)
+    override this.TryParse input = Some <| Text input
+
+  let Name = TextProperty("Name")
+  let HP = NumberProperty("HP")
+  let SP = NumberProperty("SP")
+  let XP = NumberProperty("XP")
+  let Properties =
+    ([ Name; HP; SP; XP ] : Property list)
+    |> List.map (fun t -> t.Name, t)
+    |> Map.ofList
+
+open SimpleProperties
 // gets value from the user
 let acquireValue (io:IO<_>) (name: string) (prop: Property) =
   let response = io.query (sprintf "What is %s's %s?" name prop.Name)
