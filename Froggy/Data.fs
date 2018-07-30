@@ -51,6 +51,28 @@ module Data =
       | None -> PropertyValue.empty
     let pv': 'union = PropertyValue.add duration v currentValue |> prop.ToUnion
     { d with mapping = d.mapping |> Map.add (id, prop.Name) pv' }
+  let addName (creatureTypeName:string) data =
+    if data.roster.ContainsKey creatureTypeName then
+      data.roster.[creatureTypeName], data
+    else
+      let id = if data.roster.IsEmpty then 1
+                else (data.roster |> Seq.maxBy (fun kv -> kv.Value)).Value |> (+) 1
+      let data =
+        { data with
+            roster = Map.add creatureTypeName id data.roster
+            reverseRoster = Map.add id creatureTypeName data.reverseRoster
+        }
+      id, data
+
+// methods for loading up data based on creatureType (by name)
+module Template =
+  let load (prop: PropertyMetadata<_,PropertyValue<_,_>>) (creatureTypeName:string) v data =
+    let id, data = Data.addName creatureTypeName data
+    let v = PropertyValue.empty |> PropertyValue.add Permanent (Value v) |> prop.ToUnion
+    { data with
+        mapping =
+          data.mapping |> Map.add (id, prop.Name) v
+      }
 
 module SimpleProperties =
   type Conditions = {
@@ -78,7 +100,7 @@ module SimpleProperties =
                     create: PropertyValue<SimpleStore, 't> -> PropertyValueUnion,
                     get: PropertyValueUnion -> PropertyValue<SimpleStore, 't> option,
                     tryParse: string -> 't option,
-                    ?fallback: IO<_> -> Id -> SimpleStore -> ('t * SimpleStore) option
+                    ?fallback: Property<_> -> IO<_> -> Id -> SimpleStore -> ('t * SimpleStore) option
                     ) =
     inherit PropertyMetadata<PropertyValueUnion, PropertyValue<SimpleStore,'t>>(name)
     member this.TryParse v = tryParse v
@@ -96,7 +118,7 @@ module SimpleProperties =
         getPropertyValue (io.query (sprintf "Sorry, I didn't understand '%s'.\nWhat is %s's %s?" response name prop.Name))
     getPropertyValue response
 
-  let rec lookup io (prop: Property<'t>) id (data : SimpleStore) =
+  let rec lookup (io:IO<_>) (prop: Property<'t>) id (data : SimpleStore) =
     let (|PropertyMatch|_|) =
       prop.FromUnion
     match Map.tryFind (id, prop.Name) data.mapping with
@@ -114,7 +136,7 @@ module SimpleProperties =
         let defaultVals =
           match prop.Fallback with
           | Some fallback ->
-            fallback io id data
+            fallback prop io id data
           | _ -> None
         // fallback may or may not return values
         match defaultVals with
@@ -136,9 +158,19 @@ module SimpleProperties =
   let TextPropertyFB name fb = Property<string>(name, Text, (function Text t -> Some t | v -> None), parseText, fb)
 
   let hp = NumberProperty "HP"
-  let nameList = Property<string []>("Name List", NameList, (function NameList l -> Some l | v -> None), thunk1 failwith "NameList parse should never be called because a default exists.", fun _ _ store -> Some(Array.empty, store))
-  let creatureType = TextPropertyFB "CreatureType" (fun _ _ data -> Some("Unknown", data))
-  let name = TextPropertyFB "Name" (fun io id data ->
+  let str = NumberProperty "Str"
+  let dex = NumberProperty "Dex"
+  let con = NumberProperty "Con"
+  let creatureType = TextPropertyFB "CreatureType" (fun _ _ _ data -> Some("Unknown", data))
+  let mutable templates: SimpleStore = Data.empty |> Template.load str "Orc" 16 |> Template.load hp "Orc" 15
+  let templateFallback (prop:Property<'t>) io id data : ('t * _) =
+    let typ, data = lookup io prop id data
+    failwith "not impl"
+      //let v, templates' = lookup io prop (3) templates
+      //templates <- templates'
+      //v, data
+  let nameList = Property<string []>("Name List", NameList, (function NameList l -> Some l | v -> None), thunk1 failwith "NameList parse should never be called because a default exists.", fun _ _ _ store -> Some(Array.empty, store))
+  let name = TextPropertyFB "Name" (fun prop io id data ->
                                       match lookup io nameList id data with
                                       | [||], data -> None
                                       | names, data ->
@@ -154,7 +186,6 @@ module SimpleProperties =
     PropertyValue.empty
     |> addCondition Permanent (Value Conditions.empty)
     |> addTemporaryCondition (isRound 2) addProne
-  Data.withProps [name;nameList] |> Data.set nameList
   let mutable data = Data.withProps [hp] |> Data.set hp 1 Lasting (Value 4)
   for x in [1..5] do
     data <- Data.newRound data
