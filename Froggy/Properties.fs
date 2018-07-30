@@ -13,7 +13,7 @@ module Froggy.Properties
   type PropertyValue<'store, 't> = PropertyValue of (PropertyScope<'store> * PropertyValueComponent<'t>) list
   module PropertyValue =
     let empty = PropertyValue([])
-    let computeValue (scopeFilter: PropertyScope<_> -> bool) (parentLens: Lens<'store, 'store option, 'store option, 'store>) (store: 'store) (PropertyValue(vs): PropertyValue<'store, 't>) =
+    let computeValue (scopeFilter: PropertyScope<_> -> bool) (store: 'store) (PropertyValue(vs): PropertyValue<'store, 't>) =
       let rec applyValue v rest =
         match v with
         | Value v -> v
@@ -34,7 +34,7 @@ module Froggy.Properties
             eval rest
           | v -> matchfail v
       eval vs
-    let computePermanentValue parentLens store pv = computeValue (function Permanent -> true | _ -> false) parentLens store pv
-    let computeCurrentValue parentLens store pv = computeValue (thunk true) parentLens store pv
+    let computePermanentValue store pv = computeValue (function Permanent -> true | _ -> false) store pv
+    let computeCurrentValue store pv = computeValue (thunk true) store pv
     let add scope pv (PropertyValue pvs) =
       PropertyValue((scope, pv)::pvs)

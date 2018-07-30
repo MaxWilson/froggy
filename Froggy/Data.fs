@@ -22,16 +22,11 @@ type PropertyName = string
 type PropertyMetadata<'union>(name : PropertyName) =
   member this.Name = name
   abstract member TryParse: string -> 'union option
-type PropertyMetadata<'union,'store,'t>(name : PropertyName, create: PropertyValue<'store, 't> -> 'union, get: 'union -> PropertyValue<'store, 't> option, tryParse: string -> 't option) =
+[<AbstractClass>]
+type PropertyMetadata<'union, 't>(name: PropertyName) =
   inherit PropertyMetadata<'union>(name)
-  member this.Create = create
-  member this.Get = get
-  override this.TryParse v =
-    match tryParse v with
-    | Some v -> PropertyValue([Permanent, Value v]) |> create |> Some
-    | None -> None
-  member this.FromUnion v = get v
-  member this.ToUnion v = create v
+  abstract member FromUnion: 'union -> 't option
+  abstract member ToUnion: 't -> 'union
 
 type StatBank<'propertyValueType> = Map<Id*PropertyName, 'propertyValueType>
 type Data<'propertyValueUnion> = {
@@ -49,7 +44,7 @@ module Data =
   let withProps (props: PropertyMetadata<_> seq) = empty |> addProps props
   let getParent<'mt, 't> : RecursiveOptionLens<Data<'t>> = Lens.lens (fun x -> x.parentScope) (fun v x -> { x with parentScope = v })
   let newRound d = { d with round = Some ((defaultArg d.round 0) + 1) }
-  let set (prop: PropertyMetadata<'union, _ ,_>) (id: Id) scope v d =
+  let set (prop: PropertyMetadata<'union, PropertyValue<_, _>>) (id: Id) scope v d =
     let currentValue =
       match d.mapping |> Map.tryFind (id, prop.Name) with
       | Some pv ->
@@ -76,52 +71,56 @@ module SimpleProperties =
   and PropertyValue<'t> = PropertyValue<SimpleStore, 't>
   and PropertyValueUnion = Condition of PropertyValue<Conditions> | Number of PropertyValue<int> | Text of PropertyValue<string>
 
+  type PropertyMetadata<'t>(name : PropertyName, create: PropertyValue<SimpleStore, 't> -> PropertyValueUnion, get: PropertyValueUnion -> PropertyValue<SimpleStore, 't> option, tryParse: string -> 't option) =
+    inherit PropertyMetadata<PropertyValueUnion, PropertyValue<SimpleStore,'t>>(name)
+    override this.TryParse v =
+      match tryParse v with
+      | Some v -> PropertyValue([Permanent, Value v]) |> create |> Some
+      | None -> None
+    override this.FromUnion v = get v
+    override this.ToUnion v = create v
+
   let numberValue n = (PropertyValue [Permanent, Value n])
   let parseNumber input =
     match System.Int32.TryParse input with
     | true, v -> Some v
     | _ -> None
   let parseText input = if String.length input > 0 then Some input else None
-  let NumberProperty name = PropertyMetadata<PropertyValueUnion, SimpleStore, int>(name, Number, (function Number n -> Some n | v -> None), parseNumber)
-  let TextProperty name = PropertyMetadata<PropertyValueUnion, SimpleStore, string>(name, Text, (function Text t -> Some t | v -> None), parseText)
+  let NumberProperty name = PropertyMetadata<int>(name, Number, (function Number n -> Some n | v -> None), parseNumber)
+  let TextProperty name = PropertyMetadata<string>(name, Text, (function Text t -> Some t | v -> None), parseText)
 
   let hp = NumberProperty "HP"
+  let condition = PropertyMetadata<Conditions>("Condition", Condition, (function Condition t -> Some t | v -> None), thunk1 failwithf "Cannot parse conditions")
   let isRound x s = s.round = Some x
-  let addTemporaryCondition duration addCondition (PropertyValue cs) =
-    PropertyValue(((Temporary duration), (Transform addCondition))::cs)
+  let addCondition scope value (PropertyValue cs) =
+    PropertyValue((scope, value)::cs)
+  let addTemporaryCondition duration conditionTransform pv =
+    addCondition (Temporary duration) (Transform conditionTransform) pv
   let addProne c = { c with Prone = true }
-  let pv : PropertyValue<Data<PropertyValueUnion>,Conditions> = PropertyValue.empty |> addTemporaryCondition (isRound 1) addProne
-  let data = Data.withProps [hp] |> Data.set hp 1 Lasting (Value 4)
-  let v = (PropertyValue.computeCurrentValue Data.getParent data pv)
-  printf "Are we prone? %A" v
+  let pv =
+    PropertyValue.empty
+    |> addCondition Permanent (Value Conditions.empty)
+    |> addTemporaryCondition (isRound 2) addProne
+  let mutable data = Data.withProps [hp] |> Data.set hp 1 Lasting (Value 4)
+  for x in [1..5] do
+    data <- Data.newRound data
+    let v = (PropertyValue.computeCurrentValue data pv)
+    printfn "Are we prone? %s" <| v.Prone.ToString()
 
-  type PropertyValueUnion = Text of string | Number of int | Conditions of Conditions
-  let asNumber = function Number n -> n | v -> failwithf "Invalid cast: %A is not a number" v
-  let asText = function Text n -> n | v -> failwithf "Invalid cast: %A is not text" v
 
-  let Name = TextProperty("Name")
-  let HP = NumberProperty("HP")
-  let SP = NumberProperty("SP")
-  let XP = NumberProperty("XP")
-  let Properties =
-    ([ Name; HP; SP; XP ] : Property list)
-    |> List.map (fun t -> t.Name, t)
-    |> Map.ofList
+  // gets value from the user
+  let acquireValue (io:IO<_>) (name: string) (prop: PropertyMetadata<PropertyValueUnion>) =
+    let response = io.query (sprintf "What is %s's %s?" name prop.Name)
+    let rec getPropertyValue (response: string) =
+      match prop.TryParse response with
+      | Some v -> v
+      | None ->
+        getPropertyValue (io.query (sprintf "Sorry, I didn't understand '%s'.\nWhat is %s's %s?" response name prop.Name))
+    getPropertyValue response
 
-open SimpleProperties
-// gets value from the user
-let acquireValue (io:IO<_>) (name: string) (prop: Property) =
-  let response = io.query (sprintf "What is %s's %s?" name prop.Name)
-  let rec getPropertyValue (response: string) =
-    match prop.TryParse response with
-    | Some v -> v
+  let lookup io (prop: PropertyMetadata<PropertyValueUnion>) id (data : SimpleStore) =
+    match Map.tryFind (id, prop.Name) data.mapping with
+    | Some(v) -> v, data
     | None ->
-      getPropertyValue (io.query (sprintf "Sorry, I didn't understand '%s'.\nWhat is %s's %s?" response name prop.Name))
-  getPropertyValue response
-
-let lookup io (prop: Property) id (data : Data<_, _>) =
-  match Map.tryFind (id, prop.Name) data.mapping with
-  | Some(v) -> v, data
-  | None ->
-    let v = acquireValue io data.reverseRoster.[id] prop
-    v, { data with mapping = data.mapping |> Map.add (id, prop.Name) v }
+      let v = acquireValue io data.reverseRoster.[id] prop
+      v, { data with mapping = data.mapping |> Map.add (id, prop.Name) v }
