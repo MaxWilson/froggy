@@ -17,25 +17,37 @@ type IO<'t> =
 
 type Id = int
 type PropertyName = string
+
+[<AbstractClass>]
+type PropertyMetadata<'union>(name : PropertyName) =
+  member this.Name = name
+  abstract member TryParse: string -> 'union option
+type PropertyMetadata<'union,'t>(name : PropertyName, create: 't -> 'union, get: 'union -> 't option, tryParse: string -> 'union option) =
+  inherit PropertyMetadata<'union>(name)
+  member this.Create = create
+  member this.Get = get
+  override this.TryParse v =
+    match tryParse v with
+    | Some v -> PropertyValue([Permanent, Value v])
+    | None -> None
+
 type StatBank<'propertyValueType> = Map<Id*PropertyName, 'propertyValueType>
-type Data<'propertyMetadataType, 'propertyValueType> = {
+type Data<'propertyValueUnion> = {
   roster: Map<string, Id>
   reverseRoster: Map<Id, string>
-  mapping: StatBank<'propertyValueType>
-  properties: Map<string, 'propertyMetadataType>
-  parentScope: Data<'propertyMetadataType, 'propertyValueType> option
+  mapping: StatBank<'propertyValueUnion>
+  properties: Map<string, PropertyMetadata<'propertyValueUnion>>
+  parentScope: Data<'propertyValueUnion> option
   round: int option
 }
-type PropertyMetadata<'t, 'union> = { Name: PropertyName; Create: 't -> 'union; Get: 'union -> 't option }
-module PropertyMetadata =
-  let create name createFunction getFunction =
-    { Name = name; Create = createFunction; Get = getFunction }
+
 module Data =
   let empty = { roster = Map.empty; reverseRoster = Map.empty; mapping = Map.empty; properties = Map.empty; parentScope = None; round = None }
-  let withProps props d = { d with properties = props |> Seq.map (fun p -> p.Name, p) |> Map.ofSeq }
-  let getParent<'mt, 't> : RecursiveOptionLens<Data<'mt, 't>> = Lens.lens (fun x -> x.parentScope) (fun v x -> { x with parentScope = v })
+  let addProps (props: PropertyMetadata<_> seq) d = { d with properties = props |> Seq.fold (fun m p -> m |> Map.add p.Name p) d.properties }
+  let withProps (props: PropertyMetadata<_> seq) = empty |> addProps props
+  let getParent<'mt, 't> : RecursiveOptionLens<Data<'t>> = Lens.lens (fun x -> x.parentScope) (fun v x -> { x with parentScope = v })
   let newRound d = { d with round = Some ((defaultArg d.round 0) + 1) }
-  let set prop (id: Id) scope v d =
+  let set (prop: PropertyMetadata<_,_>) (id: Id) scope v d =
     let currentValue =
       match d.mapping |> Map.tryFind (id, prop.Name) with
       | Some pv -> pv
@@ -66,14 +78,23 @@ module SimpleProperties =
                 Prone = c.Prone || c.Unconscious } // todo: how to prevent prone from ending just because Unconscious ends
     let isIncapacitated c =
       (computeClosure c).Incapacitated
+  type SimpleStore = Data<PropertyValueUnion>
+  and PropertyValue<'t> = PropertyValue<SimpleStore, 't>
+  and PropertyValueUnion = Condition of PropertyValue<Conditions> | Number of PropertyValue<int> | Text of PropertyValue<string>
 
-  type PropertyValueUnion = Condition of Conditions | Number of int
-  let hp = PropertyMetadata.create "HP" Number (function Number n -> Some n | v -> None)
+  let parseNumber input =
+    match System.Int32.TryParse input with
+    | true, v -> Some <| Number (Permanent, Value v)
+    | _ -> None
+  let parseText input = Some <| Text input
+  let NumberProperty name = PropertyMetadata<PropertyValueUnion, int>(name, Number, (function Number n -> Some n | v -> None), parseNumber)
+
+  let hp = NumberProperty "HP"
   let isRound x s = s.round = Some x
   let addTemporaryCondition duration addCondition (PropertyValue cs) =
     PropertyValue(((Temporary duration), (Transform addCondition))::cs)
   let addProne c = { c with Prone = true }
-  let pv = PropertyValue.empty |> addTemporaryCondition (isRound 1) addProne
+  let pv : PropertyValue<Data<PropertyValueUnion>,Conditions> = PropertyValue.empty |> addTemporaryCondition (isRound 1) addProne
   let data = Data.withProps [hp] |> Data.set hp 1 Lasting (Value 4)
   let v = (PropertyValue.computeCurrentValue Data.getParent data pv)
   printf "Are we prone? %A" v
@@ -81,20 +102,6 @@ module SimpleProperties =
   type PropertyValueUnion = Text of string | Number of int | Conditions of Conditions
   let asNumber = function Number n -> n | v -> failwithf "Invalid cast: %A is not a number" v
   let asText = function Text n -> n | v -> failwithf "Invalid cast: %A is not text" v
-
-  [<AbstractClass>]
-  type Property(name : PropertyName) =
-    member this.Name = name
-    abstract member TryParse: string -> PropertyValueUnion option
-  type NumberProperty(name) =
-    inherit Property(name)
-    override this.TryParse input =
-      match System.Int32.TryParse input with
-      | true, v -> Some <| Number v
-      | _ -> None
-  type TextProperty(name) =
-    inherit Property(name)
-    override this.TryParse input = Some <| Text input
 
   let Name = TextProperty("Name")
   let HP = NumberProperty("HP")
