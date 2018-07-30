@@ -1,15 +1,16 @@
 ﻿#if INTERACTIVE
 #I __SOURCE_DIRECTORY__
 #load "Common.fs"
+open Froggy.Common
 #else
 module Froggy.Properties
-#endif
   open Froggy.Common
+#endif
 
   type RoundNumber = int
   type PropertyScope<'store> = Permanent | Lasting | Temporary of ('store -> bool)
-  type PropertyValueComponent<'store, 't> = Value of 't | Transform of ('t -> 't)
-  type PropertyValue<'store, 't> = PropertyValue of (PropertyScope<'store> * PropertyValueComponent<'store, 't>) list
+  type PropertyValueComponent<'t> = Value of 't | Transform of ('t -> 't)
+  type PropertyValue<'store, 't> = PropertyValue of (PropertyScope<'store> * PropertyValueComponent<'t>) list
   module PropertyValue =
     let empty = PropertyValue([])
     let computeValue (scopeFilter: PropertyScope<_> -> bool) (parentLens: Lens<'store, 'store option, 'store option, 'store>) (store: 'store) (PropertyValue(vs): PropertyValue<'store, 't>) =

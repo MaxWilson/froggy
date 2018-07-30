@@ -22,14 +22,16 @@ type PropertyName = string
 type PropertyMetadata<'union>(name : PropertyName) =
   member this.Name = name
   abstract member TryParse: string -> 'union option
-type PropertyMetadata<'union,'t>(name : PropertyName, create: 't -> 'union, get: 'union -> 't option, tryParse: string -> 'union option) =
+type PropertyMetadata<'union,'store,'t>(name : PropertyName, create: PropertyValue<'store, 't> -> 'union, get: 'union -> PropertyValue<'store, 't> option, tryParse: string -> 't option) =
   inherit PropertyMetadata<'union>(name)
   member this.Create = create
   member this.Get = get
   override this.TryParse v =
     match tryParse v with
-    | Some v -> PropertyValue([Permanent, Value v])
+    | Some v -> PropertyValue([Permanent, Value v]) |> create |> Some
     | None -> None
+  member this.FromUnion v = get v
+  member this.ToUnion v = create v
 
 type StatBank<'propertyValueType> = Map<Id*PropertyName, 'propertyValueType>
 type Data<'propertyValueUnion> = {
@@ -47,21 +49,13 @@ module Data =
   let withProps (props: PropertyMetadata<_> seq) = empty |> addProps props
   let getParent<'mt, 't> : RecursiveOptionLens<Data<'t>> = Lens.lens (fun x -> x.parentScope) (fun v x -> { x with parentScope = v })
   let newRound d = { d with round = Some ((defaultArg d.round 0) + 1) }
-  let set (prop: PropertyMetadata<_,_>) (id: Id) scope v d =
+  let set (prop: PropertyMetadata<'union, _ ,_>) (id: Id) scope v d =
     let currentValue =
       match d.mapping |> Map.tryFind (id, prop.Name) with
-      | Some pv -> pv
+      | Some pv ->
+        defaultArg (prop.FromUnion pv) PropertyValue.empty
       | None -> PropertyValue.empty
-    let pvComponent =
-      match v with
-      | Value v' -> Value (prop.Create v')
-      | Transform t -> Transform (fun unionVal ->
-                        match prop.Get unionVal with
-                        | Some v' ->
-                          prop.Create (t v')
-                        | None ->
-                          failwithf "Invalid conversion: %A is not a valid value for %s" unionVal prop.Name)
-    let pv' = PropertyValue.add scope pvComponent currentValue
+    let pv': 'union = PropertyValue.add scope v currentValue |> prop.ToUnion
     { d with mapping = d.mapping |> Map.add (id, prop.Name) pv' }
 
 module SimpleProperties =
@@ -82,12 +76,14 @@ module SimpleProperties =
   and PropertyValue<'t> = PropertyValue<SimpleStore, 't>
   and PropertyValueUnion = Condition of PropertyValue<Conditions> | Number of PropertyValue<int> | Text of PropertyValue<string>
 
+  let numberValue n = (PropertyValue [Permanent, Value n])
   let parseNumber input =
     match System.Int32.TryParse input with
-    | true, v -> Some <| Number (Permanent, Value v)
+    | true, v -> Some v
     | _ -> None
-  let parseText input = Some <| Text input
-  let NumberProperty name = PropertyMetadata<PropertyValueUnion, int>(name, Number, (function Number n -> Some n | v -> None), parseNumber)
+  let parseText input = if String.length input > 0 then Some input else None
+  let NumberProperty name = PropertyMetadata<PropertyValueUnion, SimpleStore, int>(name, Number, (function Number n -> Some n | v -> None), parseNumber)
+  let TextProperty name = PropertyMetadata<PropertyValueUnion, SimpleStore, string>(name, Text, (function Text t -> Some t | v -> None), parseText)
 
   let hp = NumberProperty "HP"
   let isRound x s = s.round = Some x

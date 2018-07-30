@@ -5,7 +5,8 @@ let thunk x _ = x
 let betweenInclusive bound1 bound2 x = (min bound1 bound2) <= x && x <= (max bound1 bound2)
 let thunk1 f x _ = f x
 let thunk2 f x y _ = f x y
-let matchfail v = failwithf "No match found for %A" v
+type MatchFailException(msg) = inherit System.InvalidOperationException(msg)
+let matchfail v = sprintf "No match found for %A" v |> MatchFailException |> raise
 
 // Lens code based on http://www.fssnip.net/7Pk/title/Polymorphic-lenses by Vesa Karvonen
 
