@@ -8,12 +8,12 @@ module Froggy.Properties
 #endif
 
   type RoundNumber = int
-  type PropertyScope<'store> = Permanent | Lasting | Temporary of ('store -> bool)
+  type Duration<'store> = Permanent | Lasting | Temporary of ('store -> bool)
   type PropertyValueComponent<'t> = Value of 't | Transform of ('t -> 't)
-  type PropertyValue<'store, 't> = PropertyValue of (PropertyScope<'store> * PropertyValueComponent<'t>) list
+  type PropertyValue<'store, 't> = PropertyValue of (Duration<'store> * PropertyValueComponent<'t>) list
   module PropertyValue =
     let empty = PropertyValue([])
-    let computeValue (scopeFilter: PropertyScope<_> -> bool) (store: 'store) (PropertyValue(vs): PropertyValue<'store, 't>) =
+    let computeValue (durationFilter: Duration<_> -> bool) (store: 'store) (PropertyValue(vs): PropertyValue<'store, 't>) =
       let rec applyValue v rest =
         match v with
         | Value v -> v
@@ -22,8 +22,8 @@ module Froggy.Properties
           t v
       and eval =
         function
-          | (scope, _)::rest when scopeFilter scope = false ->
-            // do NOT apply since it's for a different scope
+          | (duration, _)::rest when durationFilter duration = false ->
+            // do NOT apply since it's for a different duration
             eval rest
           | ((Permanent | Lasting), v)::rest ->
             applyValue v rest
@@ -36,5 +36,5 @@ module Froggy.Properties
       eval vs
     let computePermanentValue store pv = computeValue (function Permanent -> true | _ -> false) store pv
     let computeCurrentValue store pv = computeValue (thunk true) store pv
-    let add scope pv (PropertyValue pvs) =
-      PropertyValue((scope, pv)::pvs)
+    let add duration pv (PropertyValue pvs) =
+      PropertyValue((duration, pv)::pvs)
