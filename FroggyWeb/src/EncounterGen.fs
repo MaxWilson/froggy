@@ -93,6 +93,7 @@ let getXPValue monsterName =
   match monsters |> List.tryFind (fst >> (=) monsterName) with
   | Some(_, v) -> v
   | None -> failwithf "Monster '%s' has no XP cost assigned" monsterName
+
 let calculateCost (pcLevels: _ list) roster = (roster |> List.sumBy(getXPValue) |> float) * (xpMultiplier pcLevels.Length (List.length roster)) |> int
 
 let generate calculateCost monsterParties xpBudgets difficulty =

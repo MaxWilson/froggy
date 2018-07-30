@@ -5,6 +5,7 @@ let thunk x _ = x
 let betweenInclusive bound1 bound2 x = (min bound1 bound2) <= x && x <= (max bound1 bound2)
 let thunk1 f x _ = f x
 let thunk2 f x y _ = f x y
+let fail() = failwith "Not implemented" // occasionally useful while developing, as a placeholder to avoid confusing type inference
 
 // Lens code based on http://www.fssnip.net/7Pk/title/Polymorphic-lenses by Vesa Karvonen
 
@@ -33,6 +34,17 @@ module String =
     | None -> input
 
 let random = System.Random()
+let rollOneDie d = random.Next(d) + 1
 let randomChoice (lst: _ array) =
   if lst.Length = 0 then failwith "Cannot choose from an empty list"
   else lst.[random.Next(lst.Length)]
+
+module Fraction =
+  open System.Numerics
+
+  let ratio precision (m:BigInteger) (n:BigInteger) = (m*(10I ** precision)/n |> float)/(float (10I**precision))
+
+  type Fraction = { numerator: BigInteger; denominator: BigInteger }
+  let create n m = { numerator = n; denominator = m }
+  let toFloat { numerator = n; denominator = m } = ratio 3 n m
+  let toPercent { numerator = n; denominator = m } = ratio 1 (n*100I) m

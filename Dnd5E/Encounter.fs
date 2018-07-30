@@ -6,7 +6,7 @@ open Froggy.Dnd5e.Data
 
 let orcNames = [|"Gronk"; "Spud"; "Thud"; "Narmsh"; "Bargle"; "Quonk"; "Varak"; "Skorn"|]
 let templates = [
-  { TypeName = "Orc"; Namelist = orcNames; HP = RollSpec.Compound([], 15) }
+  { TypeName = "Orc"; Namelist = orcNames; HP = Roll.StaticValue 15 }
 ]
 
 let encounter : (string * int) list -> MonsterTemplate list =

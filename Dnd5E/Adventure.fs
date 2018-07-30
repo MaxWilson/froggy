@@ -2,7 +2,8 @@
 open Froggy.Common
 
 module Properties =
-  open Data
+  open Froggy.Dnd5e.Data
+  open Froggy.Dnd5e.Data.Roll
 
   type PropertyName = string
   type PropertyValue = Text of string | Number of int
@@ -36,7 +37,7 @@ module Properties =
     with
     static member New(name, lens) = { Name = name; Lens = lens; Origin = None; Output = None }
   let Name = TextProperty("Name", origin = fun sb -> Text sb.Name)
-  let HP = NumberProperty("HP", origin = (fun sb -> Number sb.HP), fromTemplate = (fun t -> resolve (random.Next >> (+) 1) >> Number <| t.HP ))
+  let HP = NumberProperty("HP", origin = (fun sb -> Number sb.HP), fromTemplate = (fun t -> eval >> Result.getValue >> Number <| t.HP ))
   let SP = NumberProperty("SP", origin = fun sb -> Number sb.HP)
   let XP = NumberProperty("XP", origin = (fun sb -> Number sb.XP), output = fun pv sb -> { sb with XP = asNumber pv })
   let Properties =

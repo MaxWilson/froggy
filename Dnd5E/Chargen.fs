@@ -241,17 +241,18 @@ let update (io: IO<_>) roll cmds state =
       | NewContext -> { Party.Empty with Current = Some 0; Party = [CharSheet.Empty] }
       | SetName v when hasCurrent ->
           state |> Lens.over Prop.Current (fun st -> { st with Name = v })
-      | RollStats when hasCurrent->
+      | RollStats when hasCurrent ->
+        let statRoll = Roll.Combine(Roll.Sum, Roll.Best(3, Roll.Repeat(4, Roll.Dice(1,6))))
         state |> Lens.over Prop.Current (fun st ->
           { st with
               Stats =
               {
-              Str = roll (RollSpec.SumKeepBestNofM(4,3,6))
-              Dex = roll (RollSpec.SumKeepBestNofM(4,3,6))
-              Con = roll (RollSpec.SumKeepBestNofM(4,3,6))
-              Int = roll (RollSpec.SumKeepBestNofM(4,3,6))
-              Wis = roll (RollSpec.SumKeepBestNofM(4,3,6))
-              Cha = roll (RollSpec.SumKeepBestNofM(4,3,6))
+              Str = roll statRoll
+              Dex = roll statRoll
+              Con = roll statRoll
+              Int = roll statRoll
+              Wis = roll statRoll
+              Cha = roll statRoll
               }
           })
       | AssignStats(order) when hasCurrent ->
@@ -372,4 +373,4 @@ type GameState(roll) =
     view state |> this.UpdateStatus
   member this.Execute(cmd) = this.Execute [cmd]
   new() =
-    GameState(resolve <| fun x -> 1 + random.Next(x))
+    GameState(Roll.eval >> Roll.Result.getValue)

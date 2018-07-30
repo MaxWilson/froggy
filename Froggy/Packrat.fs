@@ -23,6 +23,22 @@ type ParseArgs =
   with
   static member Init(input, ?externalContext) : ParseInput = { input = input; active = ref Set.empty; settled = ref Map.empty; externalContext = externalContext }, 0
 and ParseInput = ParseArgs * Pos
+module ParseInput =
+  let analyze = function
+  | { settled = settled; input = input }, ix ->
+    let distinguish startPos afterPos (input: string) =
+      let before = input.Substring(0, startPos)
+      let after = input.Substring(afterPos)
+      let mid = input.Substring(startPos, afterPos - startPos)
+      sprintf "%s<<<%s>>>%s" before mid after
+    let results =
+      [for KeyValue((startPos, id), result) in !settled do
+        match result with
+        | Success(v, afterPos) ->
+          yield (sprintf "%s %A" (input |> distinguish startPos afterPos) v)
+        | Fail -> ()]
+    "..." + input.Substring(ix), results
+  let (|FailureAnalysis|) = analyze
 type ParseRule<'a> = (ParseInput -> ('a * ParseInput) option)
 // Convenience method for defining active patterns for external context (like property definitions) to affect parsing
 let ExternalContextOf<'t> ((x, _): ParseInput) =
@@ -106,6 +122,10 @@ let (|End|_|) ((ctx, ix): ParseInput) =
 let (|Str|_|) (str: string) ((ctx, ix): ParseInput) =
   if ix + str.Length <= ctx.input.Length && System.String.Equals(ctx.input.Substring(ix, str.Length), str, System.StringComparison.InvariantCultureIgnoreCase) then Some((ctx, ix+str.Length)) else None
 
+let (|Optional|) (str: string) ((ctx, ix): ParseInput) =
+  if ix + str.Length <= ctx.input.Length && System.String.Equals(ctx.input.Substring(ix, str.Length), str, System.StringComparison.InvariantCultureIgnoreCase) then (ctx, ix+str.Length) else (ctx, ix)
+
+
 // set up some basic alphabets
 let alpha = Set<_>['A'..'Z'] + Set<_>['a'..'z']
 let numeric = Set<_>['0'..'9']
@@ -174,3 +194,10 @@ let rec (|Words|_|) =
   | Word(w, rest) -> Some(w, rest)
   | _ -> None
 
+// helper function for dynamically creating parsers from root rules. May be useful for scripting.
+let parser (recognizerRoot: ParseRule<_>) txt =
+  let (|Root|_|) = recognizerRoot
+  match ParseArgs.Init txt with
+  | Root(v, End) -> v
+  | ParseInput.FailureAnalysis(_, analysis) ->
+    failwithf "Could not parse '%s'\nSuccessful matches: %s" txt (Froggy.Common.String.join "\n" analysis)
