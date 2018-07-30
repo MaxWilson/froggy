@@ -26,12 +26,13 @@ type Data<'propertyMetadataType, 'propertyValueType> = {
   parentScope: Data<'propertyMetadataType, 'propertyValueType> option
   round: int option
 }
-type PropertyMetadata<'store, 'union, 't> = { Name: PropertyName; Create: 't -> PropertyValueComponent<'store, 'union>; Get: 'union -> 't option }
+type PropertyMetadata<'t, 'union> = { Name: PropertyName; Create: 't -> 'union; Get: 'union -> 't option }
 module PropertyMetadata =
   let create name createFunction getFunction =
     { Name = name; Create = createFunction; Get = getFunction }
 module Data =
   let empty = { roster = Map.empty; reverseRoster = Map.empty; mapping = Map.empty; properties = Map.empty; parentScope = None; round = None }
+  let withProps props d = { d with properties = props |> Seq.map (fun p -> p.Name, p) |> Map.ofSeq }
   let getParent<'mt, 't> : RecursiveOptionLens<Data<'mt, 't>> = Lens.lens (fun x -> x.parentScope) (fun v x -> { x with parentScope = v })
   let newRound d = { d with round = Some ((defaultArg d.round 0) + 1) }
   let set prop (id: Id) scope v d =
@@ -39,7 +40,16 @@ module Data =
       match d.mapping |> Map.tryFind (id, prop.Name) with
       | Some pv -> pv
       | None -> PropertyValue.empty
-    let pv' = PropertyValue.add scope v currentValue
+    let pvComponent =
+      match v with
+      | Value v' -> Value (prop.Create v')
+      | Transform t -> Transform (fun unionVal ->
+                        match prop.Get unionVal with
+                        | Some v' ->
+                          prop.Create (t v')
+                        | None ->
+                          failwithf "Invalid conversion: %A is not a valid value for %s" unionVal prop.Name)
+    let pv' = PropertyValue.add scope pvComponent currentValue
     { d with mapping = d.mapping |> Map.add (id, prop.Name) pv' }
 
 module SimpleProperties =
@@ -58,13 +68,13 @@ module SimpleProperties =
       (computeClosure c).Incapacitated
 
   type PropertyValueUnion = Condition of Conditions | Number of int
+  let hp = PropertyMetadata.create "HP" Number (function Number n -> Some n | v -> None)
+  let isRound x s = s.round = Some x
   let addTemporaryCondition duration addCondition (PropertyValue cs) =
     PropertyValue(((Temporary duration), (Transform addCondition))::cs)
   let addProne c = { c with Prone = true }
-  let isRound x s = s.round = Some x
   let pv = PropertyValue.empty |> addTemporaryCondition (isRound 1) addProne
-  let hp = PropertyMetadata.create "HP" id (function Number n -> Some n | v -> None)
-  let data = Data.empty |> Data.set hp 1 Lasting (Value (Number 4))
+  let data = Data.withProps [hp] |> Data.set hp 1 Lasting (Value 4)
   let v = (PropertyValue.computeCurrentValue Data.getParent data pv)
   printf "Are we prone? %A" v
 
