@@ -102,7 +102,7 @@ module Execution =
   open Froggy.Data
   open Froggy.Data.AdventureData
 
-  let executeOne (io: IO<_>) cmd data =
+  let executeOne (io: IO) cmd data =
     match cmd with
     | Set(prop, v, id) ->
       { data with mapping = data.mapping |> Map.add (id, prop.Name) v }
@@ -152,7 +152,7 @@ module Fight =
             data.properties |> Map.fold mapProperty data.mapping
         }
     encounter |> List.fold add adventure
-  let run (io: Froggy.Data.IO<_>) fight =
+  let run (io: Froggy.Data.IO) fight =
     let mordred = 1 // lazy programmer
     let sam = 2
     let roll = Roll.eval

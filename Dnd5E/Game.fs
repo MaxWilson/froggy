@@ -7,27 +7,31 @@ open Froggy.Data
 module Commands =
   type Command =
     | CharGenCommands of CharGen.Commands.Command list
-    | AdventureCommands of Data.AdventureData.Command list
+    | LoadMonsterTemplate of filename: string
+    | SaveMonsterTemplate of filename: string
 
 module Grammar =
   open Froggy.Packrat
   open Commands
   let rec (|Commands|_|) = pack <| function
     | CharGen.Grammar.Commands(cmds, rest) -> Some(CharGenCommands cmds, rest)
-    | Adventure.Grammar.Commands(cmds, rest) -> Some(AdventureCommands cmds, rest)
     | _ -> None
 
 open Commands
-let update io roll cmd state =
+let update (io:IO) roll cmd state =
   match cmd with
   | CharGenCommands cmds ->
     let state = { state with party = CharGen.update io roll cmds state.party }
     view state.party |> io.output
     state
-  | AdventureCommands cmds ->
-    let adventure =
-      state.adventure
-      |> Option.defaultWith
-        (fun _ ->
-          Adventure.Init state.party.Party)
-    { state with adventure = Some <| Adventure.update io roll cmds adventure }
+  | SaveMonsterTemplate filename ->
+    match !state.monsterTemplates with
+    | Some(templates) ->
+      io.save filename templates
+    | None -> ()
+    state
+  | LoadMonsterTemplate filename ->
+    match io.load<Froggy.Data.SimpleProperties.SimpleStore> filename with
+    | Some templates ->
+      { state with monsterTemplates = ref (Some templates) }
+    | None -> state

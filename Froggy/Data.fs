@@ -3,17 +3,19 @@ open Froggy.Common
 open Froggy.Properties
 
 // interface for external interactions with user and/or file system
-type IO<'t> =
-  {
-    save: string -> 't -> unit
-    load: string -> 't option
-    query: string -> string
-    output: string -> unit
-  }
-  with
-  static member Fail =
-    let fail _ = failwith "Not implemented"
-    { save = thunk fail; load = fail; query = fail; output = fail } : IO<'t>
+[<AbstractClass>]
+type IO() =
+  abstract save: fileName:string -> valueToSave:'t -> unit
+  abstract load: fileName:string -> 't option
+  abstract query: query:string -> string
+  abstract output: string -> unit
+
+type IOFail() =
+  inherit IO()
+  override this.save fileName valueToSave = fail()
+  override this.load fileName = fail()
+  override this.query query = fail()
+  override this.output arg = fail()
 
 type Id = int
 type PropertyName = string
@@ -100,7 +102,7 @@ module SimpleProperties =
                     create: PropertyValue<SimpleStore, 't> -> PropertyValueUnion,
                     get: PropertyValueUnion -> PropertyValue<SimpleStore, 't> option,
                     tryParse: string -> 't option,
-                    ?fallback: Property<_> -> IO<_> -> Id -> SimpleStore -> ('t * SimpleStore) option
+                    ?fallback: Property<_> -> IO -> Id -> SimpleStore -> ('t * SimpleStore) option
                     ) =
     inherit PropertyMetadata<PropertyValueUnion, PropertyValue<SimpleStore,'t>>(name)
     member this.TryParse v = tryParse v
@@ -109,7 +111,7 @@ module SimpleProperties =
     member this.Fallback = fallback
 
   // gets value from the user
-  let acquireValue (io:IO<_>) (name: string) (prop: Property<_>) =
+  let acquireValue (io:IO) (name: string) (prop: Property<_>) =
     let response = io.query (sprintf "What is %s's %s?" name prop.Name)
     let rec getPropertyValue (response: string) =
       match prop.TryParse response with
@@ -118,7 +120,7 @@ module SimpleProperties =
         getPropertyValue (io.query (sprintf "Sorry, I didn't understand '%s'.\nWhat is %s's %s?" response name prop.Name))
     getPropertyValue response
 
-  let rec lookup (io:IO<_>) (prop: Property<'t>) id (data : SimpleStore) =
+  let rec lookup (io:IO) (prop: Property<'t>) id (data : SimpleStore) =
     let (|PropertyMatch|_|) =
       prop.FromUnion
     match Map.tryFind (id, prop.Name) data.mapping with

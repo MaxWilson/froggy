@@ -14,7 +14,7 @@ let parse input =
   | Froggy.CharGen.Grammar.Commands(cmds, Froggy.Packrat.End) -> cmds
   | _ -> []
 
-let io = IO<CharSheet>.Fail
+let io = IOFail()
 
 [<Fact>]
 let VerifyStatBonus() =
@@ -151,6 +151,18 @@ let TestClassLevels() =
   Assert.Contains ("Blade Pact Hexblade 1-5", output)
 
 
+type IOStub(save, load) =
+  inherit IOFail()
+  override this.save filename value =
+    match box value with
+    | :? 't as value ->
+      save filename value
+    | _ -> fail()
+  override this.load<'t> (filename: string) : 't option =
+    if typeof<'t> = typeof<CharSheet> then
+      load filename |> unbox<'t option>
+    else
+      fail()
 
 [<Fact>]
 let TestSaveLoad() =
@@ -161,7 +173,7 @@ let TestSaveLoad() =
   let roll = (fun _ -> i <- i + 1; i)
   let mutable jsonFile = CharSheet.Empty
   let mutable fileName = ""
-  let mutable io = { io with save = (fun fileName' data -> fileName <- fileName'; jsonFile <- data); load = (fun fileName -> if fileName = "Mary Sue" then Some ({CharSheet.Empty with Name = "Mary Sue"; Stats = { Str = 18; Dex = 18; Con = 18; Int = 18; Wis = 18; Cha = 22 }}) else None) }
+  let mutable io = IOStub(save = (fun fileName' data -> fileName <- fileName'; jsonFile <- data), load = (fun fileName -> if fileName = "Mary Sue" then Some ({CharSheet.Empty with Name = "Mary Sue"; Stats = { Str = 18; Dex = 18; Con = 18; Int = 18; Wis = 18; Cha = 22 }}) else None))
   let proc cmd =
     let cmds = ParseArgs.Init cmd |> parse
     Assert.NotEmpty cmds
@@ -191,7 +203,7 @@ let TestSaveLoad() =
   Assert.Contains ("Cha 22", output)
 
 [<Fact(DisplayName="Usage tests: verify corner cases for parse commands")>]
-let CornerCasees() =
+let CornerCases() =
   let mutable output = ""
   let mutable i = 11
   let updateStatus = fun summary -> output <- summary
@@ -199,7 +211,7 @@ let CornerCasees() =
   let roll = (fun _ -> i <- i + 1; i)
   let mutable jsonFile = CharSheet.Empty
   let mutable fileName = ""
-  let mutable io = { io with save = (fun fileName' data -> fileName <- fileName'; jsonFile <- data); load = (fun fileName -> if fileName = "Mary Sue" then Some ({CharSheet.Empty with Name = "Mary Sue"; Stats = { Str = 18; Dex = 18; Con = 18; Int = 18; Wis = 18; Cha = 22 }}) else None) }
+  let mutable io = IOStub(save = (fun fileName' data -> fileName <- fileName'; jsonFile <- data), load = (fun fileName -> if fileName = "Mary Sue" then Some ({CharSheet.Empty with Name = "Mary Sue"; Stats = { Str = 18; Dex = 18; Con = 18; Int = 18; Wis = 18; Cha = 22 }}) else None))
   let proc cmd =
     let cmds = ParseArgs.Init cmd |> parse
     Assert.NotEmpty cmds

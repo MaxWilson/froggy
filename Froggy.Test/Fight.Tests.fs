@@ -37,7 +37,7 @@ let pcs =
   }
   ]
 
-let io = IO<_>.Fail
+let io = IOFail()
 
 let DieInputs =
   [

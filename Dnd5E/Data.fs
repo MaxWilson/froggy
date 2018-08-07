@@ -497,6 +497,6 @@ module AdventureData =
     | Increment of NumberProperty * int * Id
     | Deduct of NumberProperty * int * Id
 
-type GameState = { party: Party; adventure: AdventureData.Data option }
+type GameState = { party: Party; adventure: Froggy.Data.SimpleProperties.SimpleStore option; monsterTemplates: Froggy.Data.SimpleProperties.SimpleStore option ref }
 module GameState =
-  let Empty = { party = { Party.Empty with Current = Some 0; Party = [CharSheet.Empty] }; adventure = None }
+  let Empty = { party = { Party.Empty with Current = Some 0; Party = [CharSheet.Empty] }; adventure = None; monsterTemplates = ref None }

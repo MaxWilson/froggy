@@ -28,30 +28,37 @@ module Roll =
     | _ ->
       result.value.ToString()
 
-
 [<EntryPoint>]
 let main argv =
-  let save characterName (data: CharSheet) =
-    use file = File.OpenWrite (characterName + ".txt")
-    use writer = new StreamWriter(file)
-    writer.WriteLine(Compact.serialize data)
-  let load characterName =
-    try
-      let json = File.ReadAllText (characterName + ".txt")
-      BackwardCompatible.deserialize<CharSheet>(json) |> Some
-    with
-      exn -> None
 
   let roll = Roll.eval >> Roll.Result.getValue
   let queryFromConsole x =
     printfn "%s" x
     System.Console.ReadLine()
-  let io = { save = save; load = load; query = queryFromConsole; output = printfn "%s" }
+  let io =
+    { new IO() with
+        override this.save fileNameNoExtension data =
+          use file = File.OpenWrite (fileNameNoExtension + ".txt")
+          use writer = new StreamWriter(file)
+          writer.WriteLine(Compact.serialize data)
+        override this.load<'t> fileNameNoExtension =
+          try
+            let json = File.ReadAllText (fileNameNoExtension + ".txt")
+            Newtonsoft.Json.JsonConvert.DeserializeObject<'t>(json) |> Some
+            //BackwardCompatible.deserialize<'t>(json) |> Some
+          with
+            exn -> None
+        override this.query v = queryFromConsole v
+        override this.output v = printfn "%s" v
+           }
 
   let exec cmd (state: GameState) =
     Game.update io roll cmd state
 
-  let initialState = GameState.Empty |> exec (Game.Commands.CharGenCommands [CharGen.Commands.Command.RollStats])
+  let initialState =
+    { GameState.Empty with monsterTemplates = ref <| Some (Froggy.Data.Data.empty) }
+    |> exec (Game.Commands.LoadMonsterTemplate "monsters")
+    |> exec (Game.Commands.CharGenCommands [CharGen.Commands.Command.RollStats])
 
   let rec commandLoop (previousCommands: ParseInput option) state =
     printf "> "
@@ -75,7 +82,10 @@ let main argv =
         printfn "Sorry, come again? (Type 'quit' to quit)"
         commandLoop previousCommands state
     match ParseArgs.Init <| Console.ReadLine() with
-    | Word (AnyCase("q" | "quit"), End) -> 0
+    | Word (AnyCase("q" | "quit"), End) ->
+      // before exiting, save templates
+      state |> exec (Game.Commands.SaveMonsterTemplate "monsters") |> ignore
+      0
     | End when previousCommands.IsSome -> // on ENTER, repeat
       execute previousCommands.Value
     | v ->

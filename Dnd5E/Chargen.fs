@@ -223,7 +223,7 @@ let view (state: Party) =
   |> List.filter ((<>) emptyString)
   |> String.join "\n"
 
-let update (io: IO<_>) roll cmds state =
+let update (io: IO) roll cmds state =
   let mutable state = state
   for cmd in cmds do
     state <-
