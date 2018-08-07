@@ -120,7 +120,15 @@ let (|End|_|) ((ctx, ix): ParseInput) =
   if ix = ctx.input.Length then Some() else None
 
 let (|Str|_|) (str: string) ((ctx, ix): ParseInput) =
-  if ix + str.Length <= ctx.input.Length && System.String.Equals(ctx.input.Substring(ix, str.Length), str, System.StringComparison.InvariantCultureIgnoreCase) then Some((ctx, ix+str.Length)) else None
+  if ix + str.Length <= ctx.input.Length && System.String.Equals(ctx.input.Substring(ix, str.Length), str, System.StringComparison.InvariantCultureIgnoreCase) then Some(ctx, ix+str.Length) else None
+
+// FAIL if input matches Str, otherwise return ix unchanged
+let (|PrecludeStr|_|) (str: string) ((ctx, ix): ParseInput) =
+  if ix + str.Length <= ctx.input.Length && System.String.Equals(ctx.input.Substring(ix, str.Length), str, System.StringComparison.InvariantCultureIgnoreCase) then None else Some(ctx, ix)
+
+// Test but do not consume next input: returns ix unchanged iff matches str, otherwise fail
+let (|LookaheadStr|_|) (str: string) ((ctx, ix): ParseInput) =
+  if ix + str.Length <= ctx.input.Length && System.String.Equals(ctx.input.Substring(ix, str.Length), str, System.StringComparison.InvariantCultureIgnoreCase) then Some(ctx, ix) else None
 
 let (|Optional|) (str: string) ((ctx, ix): ParseInput) =
   if ix + str.Length <= ctx.input.Length && System.String.Equals(ctx.input.Substring(ix, str.Length), str, System.StringComparison.InvariantCultureIgnoreCase) then (ctx, ix+str.Length) else (ctx, ix)
@@ -172,6 +180,14 @@ let (|WS|_|) ((ctx, ix): ParseInput) =
     else i
   match seek ix with
   | endx when endx > ix -> Some(ctx, endx)
+  | _ -> None
+
+// Int with no WS padding on either side
+let (|IntNoWhitespace|_|) = pack <| function
+  | Chars numeric (v, rest) ->
+    match System.Int32.TryParse(v) with
+    | true, v -> Some(v, rest)
+    | _ -> None
   | _ -> None
 
 let (|Int|_|) = pack <| function

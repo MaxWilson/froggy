@@ -229,13 +229,13 @@ module Roll =
       | SimpleRoll(roll, rest) -> Some([roll], rest)
       | _ -> None
     and (|SimpleRoll|_|) = pack <| function
-      | Int(n, Char ('d', Int(d, Char ('k', Int(m, rest))))) -> Some (Combine(Sum, Best(m, (Repeat(n, Dice(1, d))))), rest)
-      | Int(n, Char ('d', Int(d, rest))) -> Some (Dice(n, d), rest)
-      | Int(n, Char ('d', rest)) -> Some (Dice(n, 6), rest)
-      | OWS(Char ('d', Int(d, Char('a', rest)))) -> Some (Combine(Max, Repeat(2, Dice(1,d))), rest)
-      | OWS(Char ('d', Int(d, Char('d', rest)))) -> Some (Combine(Min, Repeat(2, Dice(1,d))), rest)
-      | OWS(Char ('d', Int(d, rest))) -> Some (Dice(1,d), rest)
-      | Int(n, rest) -> Some(StaticValue n, rest)
+      | OWS(IntNoWhitespace(n, Char ('d', IntNoWhitespace(d, Char ('k', IntNoWhitespace(m, rest)))))) -> Some (Combine(Sum, Best(m, (Repeat(n, Dice(1, d))))), rest)
+      | OWS(IntNoWhitespace(n, Char ('d', IntNoWhitespace(d, rest)))) -> Some (Dice(n, d), rest)
+      | OWS(IntNoWhitespace(n, Char ('d', rest))) -> Some (Dice(n, 6), rest)
+      | OWS(Char ('d', IntNoWhitespace(d, Char('a', rest)))) -> Some (Combine(Max, Repeat(2, Dice(1,d))), rest)
+      | OWS(Char ('d', IntNoWhitespace(d, Char('d', rest)))) -> Some (Combine(Min, Repeat(2, Dice(1,d))), rest)
+      | OWS(Char ('d', IntNoWhitespace(d, rest))) -> Some (Dice(1,d), rest)
+      | OWS(IntNoWhitespace(n, rest)) -> Some(StaticValue n, rest)
       | _ -> None
     let (|RollsWithModifiers|_|) = pack <| function
       | SumOfSimpleRolls([v], rest) -> Some(v, rest)
@@ -259,17 +259,25 @@ module Roll =
         | true, v -> Some(-v, rest)
         | _ -> None
       | _ -> None
-    and (|Attack|_|) = pack <| function
-      // multiple shorthands for specifying advantage and disadvantage
-      | Word(AnyCase("att" | "attack"), Int(ac, Char('a', Roll(dmg, rest)))) -> Some(Branch(adv 0, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
-      | Word(AnyCase("att" | "attack"), Int(ac, Char('d', Roll(dmg, rest)))) -> Some(Branch(disadv 0, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
-      | Word(AnyCase("att" | "attack"), Int(ac, Char('a', NumericBonus(toHit, Roll(dmg, rest))))) -> Some(Branch(adv toHit, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
-      | Word(AnyCase("att" | "attack"), Int(ac, Char('d', NumericBonus(toHit, Roll(dmg, rest))))) -> Some(Branch(disadv toHit, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
-      | Word(AnyCase("att" | "attack"), Int(ac, Roll(dmg, rest))) -> Some(Branch(normal 0, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
-      | Word(AnyCase("att" | "attack"), Int(ac, NumericBonus(toHit, Char('a', Roll(dmg, rest))))) -> Some(Branch(adv toHit, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
-      | Word(AnyCase("att" | "attack"), Int(ac, NumericBonus(toHit, Char('d', Roll(dmg, rest))))) -> Some(Branch(disadv toHit, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
-      | Word(AnyCase("att" | "attack"), Int(ac, NumericBonus(toHit, Roll(dmg, rest)))) -> Some(Branch(normal toHit, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
+    and (|Advantage|_|) = function
+      | Char('a', rest) -> Some rest
       | _ -> None
+    and (|Disadvantage|_|) = function
+      | Char('d', LookaheadStr " " rest) -> Some rest // "d 4" denotes disadvantage, "d4" does NOT
+      | _ -> None
+    and (|Attack|_|) = pack <| fun x ->
+      let rv = match x with
+      // multiple shorthands for specifying advantage and disadvantage
+      | Word(AnyCase("att" | "attack"), IntNoWhitespace(ac, NumericBonus(toHit, Advantage(WS(Roll(dmg, rest)))))) -> Some(Branch(adv toHit, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
+      | Word(AnyCase("att" | "attack"), IntNoWhitespace(ac, NumericBonus(toHit, Disadvantage(WS(Roll(dmg, rest)))))) -> Some(Branch(disadv toHit, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
+      | Word(AnyCase("att" | "attack"), IntNoWhitespace(ac, NumericBonus(toHit, WS (Roll(dmg, rest))))) -> Some(Branch(normal toHit, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
+      | Word(AnyCase("att" | "attack"), IntNoWhitespace(ac, Advantage(Roll(dmg, rest)))) -> Some(Branch(adv 0, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
+      | Word(AnyCase("att" | "attack"), IntNoWhitespace(ac, Disadvantage(Roll(dmg, rest)))) -> Some(Branch(disadv 0, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
+      | Word(AnyCase("att" | "attack"), IntNoWhitespace(ac, Advantage(NumericBonus(toHit, WS(Roll(dmg, rest)))))) -> Some(Branch(adv toHit, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
+      | Word(AnyCase("att" | "attack"), IntNoWhitespace(ac, Disadvantage(NumericBonus(toHit, WS(Roll(dmg, rest)))))) -> Some(Branch(disadv toHit, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
+      | Word(AnyCase("att" | "attack"), IntNoWhitespace(ac, Roll(dmg, rest))) -> Some(Branch(normal 0, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
+      | _ -> None
+      rv
     and (|TestVariable|_|) =
       let toBaseMods = function
         | Combine(Sum, AggregateRequest.Aggregate [b; mods]) -> b, mods // optimize this representation
