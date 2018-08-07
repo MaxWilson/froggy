@@ -235,9 +235,9 @@ module Roll =
       | OWS(Char ('d', Int(d, Char('a', rest)))) -> Some (Combine(Max, Repeat(2, Dice(1,d))), rest)
       | OWS(Char ('d', Int(d, Char('d', rest)))) -> Some (Combine(Min, Repeat(2, Dice(1,d))), rest)
       | OWS(Char ('d', Int(d, rest))) -> Some (Dice(1,d), rest)
-      | Int(n, rest) -> Some(StaticValue n, rest)
       | _ -> None
     let (|RollsWithModifiers|_|) = pack <| function
+      | SumOfSimpleRolls(rolls, OWS(Str "+" (Int(n, rest)))) -> Some(Combine(Sum, Aggregate (rolls@[StaticValue n])), rest)
       | SumOfSimpleRolls([v], rest) -> Some(v, rest)
       | SumOfSimpleRolls(rolls, rest) -> Some(Combine(Sum, Aggregate rolls), rest)
       | _ -> None

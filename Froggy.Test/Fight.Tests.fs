@@ -58,6 +58,7 @@ let DieInputs =
     "att 12 2d4+7", Branch(normal 0, [Crit, d 4 4 7; AtLeast 12, d 2 4 7])
     "att 12a 2d4+7", Branch(adv 0, [Crit, d 4 4 7; AtLeast 12, d 2 4 7])
     "att 12 +7 2d4+7", Branch(normal +7, [Crit, d 4 4 7; AtLeast 12, d 2 4 7])
+    "att 12 7 (2d4+7)", Branch(normal +7, [Crit, d 4 4 7; AtLeast 12, d 2 4 7])
     "12.att 12 2d4+7", Combine(Sum, Repeat(12, Branch(normal 0, [Crit, d 4 4 7; AtLeast 12, d 2 4 7])))
     "11a?", Branch(adv 0, [AtLeast 11, StaticValue 1])
     "max(3d6, 3d8)", Combine(Max, Aggregate [Dice(3,6); Dice(3,8)])
