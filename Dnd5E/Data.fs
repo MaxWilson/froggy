@@ -250,11 +250,11 @@ module Roll =
       | Roll(r, rest) -> Some([r], rest)
       | _ -> None
     and (|NumericBonus|_|) = pack <| function
-      | OWS(Optional "+" (Chars numeric (v, OWS(rest)))) ->
+      | OWS(Optional "+" (Chars numeric (v, rest))) ->
         match System.Int32.TryParse(v) with
         | true, v -> Some(v, rest)
         | _ -> None
-      | OWS(Str "-" (Chars numeric (v, OWS(rest)))) ->
+      | OWS(Str "-" (Chars numeric (v, rest))) ->
         match System.Int32.TryParse(v) with
         | true, v -> Some(-v, rest)
         | _ -> None

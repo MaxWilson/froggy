@@ -68,6 +68,7 @@ let DieInputs =
     "(d20d + 7 at least 17)?", Branch(disadv 7, [AtLeast 17, StaticValue 1])
     "att 12d +7 2d8+4", Branch(disadv 7, [Crit, d 4 8 4; AtLeast 12, d 2 8 4])
     "att 12 +7a 2d8+4", Branch(adv 7, [Crit, d 4 8 4; AtLeast 12, d 2 8 4])
+    "att 25 +4 d100", Branch(normal 4, [Crit, Dice(2,100); AtLeast 25, Dice(1,100)])
   ]
   |> List.map (fun (x,y) -> [|box x; box y|])
   |> Array.ofList
@@ -96,7 +97,6 @@ let AggregateParsingTest(txt: string, expected: Roll.AggregateRequest) =
   | ParseInput.FailureAnalysis(_, analysis) ->
     failwithf "Could not parse '%s'\nSuccessful matches: %s" txt (String.join "\n" analysis)
 
-
 [<Theory>]
 [<InlineData("2d6", 7., 2, 12)>]
 [<InlineData("2d6+1", 8., 3, 13)>]
@@ -105,6 +105,7 @@ let AggregateParsingTest(txt: string, expected: Roll.AggregateRequest) =
 [<InlineData("11?3d8+3:10", 13.25, 0, 27)>]
 [<InlineData("2d6/2", 3.25, 1, 6)>]
 [<InlineData("4d6k3", 12.244, 3, 18)>]
+[<InlineData("att 25 +4 d100", 5.05, 0, 200)>]
 let DieRollTests(txt: string, expectedAverage: float, expectedMin: int, expectedMax: int) =
   match ParseArgs.Init txt with
   | Roll.Grammar.Roll(roll, End) ->
