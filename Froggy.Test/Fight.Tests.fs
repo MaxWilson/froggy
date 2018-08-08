@@ -71,6 +71,7 @@ let DieInputs =
     "att 25 +4 d100", Branch(normal 4, [Crit, Dice(2,100); AtLeast 25, Dice(1,100)])
     "att 25 4 d100", Branch(normal 4, [Crit, Dice(2,100); AtLeast 25, Dice(1,100)])
     "att 21 +4d d100", Branch(disadv 4, [Crit, Dice(2,100); AtLeast 21, Dice(1,100)])
+    "att 12 7 (2d4+7)", Branch(normal +7, [Crit, d 4 4 7; AtLeast 12, d 2 4 7])
   ]
   |> List.map (fun (x,y) -> [|box x; box y|])
   |> Array.ofList
