@@ -76,7 +76,7 @@ let main argv =
         commandLoop (Some commandString) state
       | Froggy.Packrat.Str "avg." (Roll.Grammar.Roll(roll, End))
       | Froggy.Packrat.Word(AnyCase("avg" | "average"), (Roll.Grammar.Roll(roll, End))) ->
-        Roll.mean roll |> printfn "%f"
+        Roll.mean roll |> printfn "%.4f"
         commandLoop (Some commandString) state
       | _ ->
         printfn "Sorry, come again? (Type 'quit' to quit)"

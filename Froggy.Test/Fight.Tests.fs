@@ -107,7 +107,7 @@ let AggregateParsingTest(txt: string, expected: Roll.AggregateRequest) =
 [<InlineData("11?3d8+3", 8.25, 0, 27)>]
 [<InlineData("11?3d8+3:10", 13.25, 0, 27)>]
 [<InlineData("2d6/2", 3.25, 1, 6)>]
-[<InlineData("4d6k3", 12.244, 3, 18)>]
+[<InlineData("4d6k3", 12.2445, 3, 18)>]
 [<InlineData("att 25 +4 d100", 5.05, 0, 200)>]
 let DieRollTests(txt: string, expectedAverage: float, expectedMin: int, expectedMax: int) =
   match ParseArgs.Init txt with

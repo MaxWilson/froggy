@@ -218,7 +218,7 @@ module Roll =
       let count, total =
         [for KeyValue(v, count) in dist -> count, (BigInteger v) * count]
         |> List.reduce (fun (count, total) (count', total') -> count + count', total + total')
-      Fraction.ratio 3 total count
+      Fraction.ratio 4 total count
 
   module Grammar =
     open Froggy.Packrat
