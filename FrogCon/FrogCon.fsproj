@@ -61,11 +61,11 @@
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="Fable.JsonConverter">
+      <HintPath>..\packages\Fable.JsonConverter.1.0.8\lib\net45\Fable.JsonConverter.dll</HintPath>
+    </Reference>
     <Reference Include="FSharp.Core">
       <HintPath>..\packages\FSharp.Core.4.5.1\lib\net45\FSharp.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.FSharpLu.Json">
-      <HintPath>..\packages\Microsoft.FSharpLu.Json.0.10.27\lib\net461\Microsoft.FSharpLu.Json.dll</HintPath>
     </Reference>
     <Reference Include="mscorlib" />
     <Reference Include="Newtonsoft.Json">

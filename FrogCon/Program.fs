@@ -6,7 +6,6 @@ open Froggy.Packrat
 open Froggy.CharGen
 open System.IO
 open Froggy.Data
-open Microsoft.FSharpLu.Json
 open Froggy
 open Common
 
@@ -28,6 +27,19 @@ module Roll =
     | _ ->
       result.value.ToString()
 
+module IO =
+  open Newtonsoft.Json
+
+  let jsonConverter = Fable.JsonConverter() :> JsonConverter
+
+  // Serialization
+  let toJson value = JsonConvert.SerializeObject(value, Formatting.Indented, [|jsonConverter|])
+
+  let ofJson<'t> json =
+    // Deserialization
+    JsonConvert.DeserializeObject<'t>(json, [|jsonConverter|])
+
+
 [<EntryPoint>]
 let main argv =
 
@@ -40,11 +52,11 @@ let main argv =
         override this.save fileNameNoExtension data =
           use file = File.OpenWrite (fileNameNoExtension + ".txt")
           use writer = new StreamWriter(file)
-          writer.WriteLine(Compact.serialize data)
+          writer.WriteLine(IO.toJson data)
         override this.load<'t> fileNameNoExtension =
           try
             let json = File.ReadAllText (fileNameNoExtension + ".txt")
-            Newtonsoft.Json.JsonConvert.DeserializeObject<'t>(json) |> Some
+            IO.ofJson<'t>(json) |> Some
             //BackwardCompatible.deserialize<'t>(json) |> Some
           with
             exn -> None
