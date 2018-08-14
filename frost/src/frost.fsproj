@@ -5,5 +5,9 @@
   <ItemGroup>
     <Compile Include="App.fs" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Dnd5E\Dnd5E.fsproj" />
+    <ProjectReference Include="..\..\Froggy\Froggy.fsproj" />
+  </ItemGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />
 </Project>

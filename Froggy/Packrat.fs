@@ -43,7 +43,7 @@ type ParseRule<'a> = (ParseInput -> ('a * ParseInput) option)
 // Convenience method for defining active patterns for external context (like property definitions) to affect parsing
 let ExternalContextOf<'t> ((x, _): ParseInput) =
   match x.externalContext with
-  | Some(:? 't as v) -> Some v
+  | Some(v) -> Some (v |> unbox<'t>)
   | _ -> None
 
 

@@ -5,19 +5,61 @@ open Fable.Helpers.React
 open Fable.Helpers.React.Props
 open Fulma
 open Fulma.FontAwesome
+open Froggy.Data
+open Froggy.Packrat
 
 type Model =
-    { Value : string }
+    { Input : string
+      Output : string
+    }
 
 type Msg =
-    | ChangeValue of string
+    | ChangeInput of string
+    | ComputeOutput
 
-let init _ = { Value = "" }, Cmd.none
+let init _ = { Input = ""; Output = "" }, Cmd.none
+
+module RollHelper =
+  open Roll
+  open Froggy.Common
+  let rec render (result: Result) =
+    match result.source with
+    | Combine(Sum, (Aggregate(_) | Repeat(_))) ->
+      sprintf "[%s] => %d" (String.join ", " (result.sublog |> List.map render)) result.value
+    | Combine(Max, (Aggregate(_) | Repeat(_))) ->
+      sprintf "max(%s) => %d" (String.join ", " (result.sublog |> List.map render)) result.value
+    | Combine(Min, (Aggregate(_) | Repeat(_))) ->
+      sprintf "min(%s) => %d" (String.join ", " (result.sublog |> List.map render)) result.value
+    | Branch((_,mods),_) ->
+      let b,m,v = match result.sublog with [b;m;v] -> b,m,v | v -> failwithf "No match for %A" v
+      let test = match mods with StaticValue 0 -> render b | _ -> (sprintf "%s+%s" (render b) (render m))
+      sprintf "(%s) -> %d" test result.value
+    | _ ->
+      result.value.ToString()
+
+  let execute commandString =
+    match ParseArgs.Init commandString with
+    | Roll.Grammar.Roll(roll, End) ->
+      Roll.eval roll |> render
+    | Roll.Grammar.Aggregate(rolls, End) ->
+      let results = rolls |> Roll.evaluateAggregate Froggy.Common.rollOneDie
+      [for result in results.value ->
+        result |> render]
+      |> String.join ";"
+    | Froggy.Packrat.Str "avg." (Roll.Grammar.Roll(roll, End))
+    | Froggy.Packrat.Word(AnyCase("avg" | "average"), (Roll.Grammar.Roll(roll, End))) ->
+      Roll.mean roll |> sprintf "%.4f"
+    | _ ->
+      "Sorry, come again?"
 
 let private update msg model =
     match msg with
-    | ChangeValue newValue ->
-        { model with Value = newValue }, Cmd.none
+    | ChangeInput newValue ->
+        { model with Input = newValue }, Cmd.none
+    | ComputeOutput ->
+
+        { model with Output = RollHelper.execute model.Input }, Cmd.none
+
 
 let private view model dispatch =
     Hero.hero [ Hero.IsFullHeight ]
@@ -33,13 +75,11 @@ let private view model dispatch =
                             [ Label.label [ ]
                                 [ str "Enter your name" ]
                               Control.div [ ]
-                                [ Input.text [ Input.OnChange (fun ev -> dispatch (ChangeValue ev.Value))
-                                               Input.Value model.Value
-                                               Input.Props [ AutoFocus true ] ] ] ]
+                                [ Input.text [ Input.OnChange (fun ev -> dispatch (ChangeInput ev.Value))
+                                               Input.Value model.Input
+                                               Input.Props [ AutoFocus true; OnKeyDown (fun ev -> if (ev.key = "Enter") then dispatch ComputeOutput) ] ] ] ]
                           Content.content [ ]
-                            [ str "Hello, "
-                              str model.Value
-                              str " "
+                            [ str model.Output
                               Icon.faIcon [ ]
                                 [ Fa.icon Fa.I.SmileO ] ] ] ] ] ] ]
 
