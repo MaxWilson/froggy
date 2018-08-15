@@ -27,7 +27,7 @@ module Roll =
     | StaticValue of n:int
     | Combine of Aggregation * AggregateRequest
     | Branch of baseRollPlusMods: (Request * Request) * branches: (Predicate * Request) list
-    | Transform of Request * tranform: Transform
+    | Transform of Request * transform: Transform
   and AggregateRequest =
     | Aggregate of Request list
     | Repeat of n: int * Request
