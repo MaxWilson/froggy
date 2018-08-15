@@ -212,13 +212,18 @@ module Roll =
           |> List.singleton // bestOf produces only one output stream
     dist roll |> DistributionResult
 
-  let mean (roll:Request) =
-    match distribution roll with
-    | DistributionResult(dist) ->
-      let count, total =
-        [for KeyValue(v, count) in dist -> count, (BigInteger v) * count]
-        |> List.reduce (fun (count, total) (count', total') -> count + count', total + total')
-      Fraction.ratio 4 total count
+  let rec mean (roll:Request) =
+    match roll with
+    // some optimizations to improve perf
+    | Combine(Sum, Repeat(n, roll)) -> float n * mean(roll)
+    | Dice(n,d) -> (n * (d+1) |> float) / 2.
+    | _ ->
+      match distribution roll with
+      | DistributionResult(dist) ->
+        let count, total =
+          [for KeyValue(v, count) in dist -> count, (BigInteger v) * count]
+          |> List.reduce (fun (count, total) (count', total') -> count + count', total + total')
+        Fraction.ratio 4 total count
 
   module Grammar =
     open Froggy.Packrat
