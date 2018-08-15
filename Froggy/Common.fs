@@ -46,7 +46,10 @@ let randomChoice (lst: _ array) =
 module Fraction =
   open System.Numerics
 
-  let ratio precision (m:BigInteger) (n:BigInteger) = (m*(10I ** precision)/n |> float)/(float (10I**precision))
+  let expn (base' : BigInteger) power = // workaround for ** not functioning right in Fable, https://github.com/fable-compiler/Fable/issues/1517
+    List.init power (thunk base') |> List.fold (*) 1I
+
+  let ratio precision (m:BigInteger) (n:BigInteger) = (m*(expn 10I precision)/n |> float)/(float (expn 10I precision))
 
   type Fraction = { numerator: BigInteger; denominator: BigInteger }
   let create n m = { numerator = n; denominator = m }
