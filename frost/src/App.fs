@@ -73,15 +73,13 @@ let private view model dispatch =
                             [ img [ Src "assets/fulma_logo.svg" ] ]
                           Field.div [ ]
                             [ Label.label [ ]
-                                [ str "Enter your name" ]
+                                [ str "Enter a die roll" ]
                               Control.div [ ]
                                 [ Input.text [ Input.OnChange (fun ev -> dispatch (ChangeInput ev.Value))
                                                Input.Value model.Input
                                                Input.Props [ AutoFocus true; OnKeyDown (fun ev -> if (ev.key = "Enter") then dispatch ComputeOutput) ] ] ] ]
                           Content.content [ ]
-                            [ str model.Output
-                              Icon.faIcon [ ]
-                                [ Fa.icon Fa.I.SmileO ] ] ] ] ] ] ]
+                            [ str model.Output ] ] ] ] ] ]
 
 open Elmish.React
 open Elmish.Debug

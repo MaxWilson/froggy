@@ -270,8 +270,7 @@ module Roll =
     and (|Disadvantage|_|) = function
       | Char('d', LookaheadStr " " rest) -> Some rest // "d 4" denotes disadvantage, "d4" does NOT
       | _ -> None
-    and (|Attack|_|) = pack <| fun x ->
-      let rv = match x with
+    and (|Attack|_|) = pack <| function
       // multiple shorthands for specifying advantage and disadvantage
       | Word(AnyCase("att" | "attack"), IntNoWhitespace(ac, NumericBonus(toHit, Advantage(WS(Roll(dmg, rest)))))) -> Some(Branch(adv toHit, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
       | Word(AnyCase("att" | "attack"), IntNoWhitespace(ac, NumericBonus(toHit, Disadvantage(WS(Roll(dmg, rest)))))) -> Some(Branch(disadv toHit, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
@@ -282,7 +281,6 @@ module Roll =
       | Word(AnyCase("att" | "attack"), IntNoWhitespace(ac, Disadvantage(NumericBonus(toHit, WS(Roll(dmg, rest)))))) -> Some(Branch(disadv toHit, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
       | Word(AnyCase("att" | "attack"), IntNoWhitespace(ac, Roll(dmg, rest))) -> Some(Branch(normal 0, [Crit, doubleDice dmg; AtLeast ac, dmg]), rest)
       | _ -> None
-      rv
     and (|TestVariable|_|) =
       let toBaseMods = function
         | Combine(Sum, AggregateRequest.Aggregate [b; mods]) -> b, mods // optimize this representation
