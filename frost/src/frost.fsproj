@@ -3,8 +3,10 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="RotatingBunny.tsx" />
     <Compile Include="App.fs" />
   </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="..\..\Dnd5E\Dnd5E.fsproj" />
     <ProjectReference Include="..\..\Froggy\Froggy.fsproj" />

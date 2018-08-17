@@ -8,10 +8,18 @@
   "license": "MIT",
   "private": true,
   "dependencies": {
+    "@types/pixi.js": "^4.8.0",
+    "@types/react": "^16.4.11",
+    "@types/react-dom": "^16.0.7",
+    "@types/typescript": "^2.0.0",
     "babel-polyfill": "^6.26.0",
     "font-awesome": "^4.7.0",
-    "react": "^16.4.1",
-    "react-dom": "^16.4.1"
+    "pixi.js": "^4.8.1",
+    "react": "^16.4.2",
+    "react-dom": "^16.4.2",
+    "react-pixi-fiber": "^0.4.9",
+    "ts-loader": "^4.5.0",
+    "typescript": "^3.0.1"
   },
   "devDependencies": {
     "autoprefixer": "^8.6.4",

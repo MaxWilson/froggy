@@ -102,6 +102,13 @@ module.exports = {
                 },
             },
             {
+                test: /\.tsx?$/,
+                exclude: /node_modules/,
+                use: {
+                    loader: 'ts-loader'
+                },
+            },
+            {
                 test: /\.s?[ac]ss$/,
                 use: [
                     isProduction ? MiniCssExtractPlugin.loader : 'style-loader',
