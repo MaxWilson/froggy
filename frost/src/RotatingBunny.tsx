@@ -1,4 +1,4 @@
-import { Sprite } from "react-pixi-fiber";
+import { Sprite, Stage } from "react-pixi-fiber";
 import * as React from "react";
 import * as PropTypes from "prop-types";
 
@@ -22,7 +22,7 @@ class RotationState {
 }
 
 // http://pixijs.io/examples/#/basics/basic.js
-class RotatingBunny extends React.Component<{}, RotationState, {}> {
+export class RotatingBunny extends React.Component<any, RotationState, {}> {
   state: RotationState = {
     rotation: 0
   };
@@ -57,4 +57,11 @@ class RotatingBunny extends React.Component<{}, RotationState, {}> {
   }
 }
 
-export default RotatingBunny;
+
+export function BunnyStage() {
+  return (
+    <Stage width={800} height={600} options={{ backgroundColor: 0x10bb99 }}>
+      <RotatingBunny x={300} y={200}/>
+    </Stage>
+  );
+}

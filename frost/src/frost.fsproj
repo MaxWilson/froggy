@@ -4,9 +4,10 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="RotatingBunny.tsx" />
+    <Compile Include="PixiJs.fs" />
+    <Compile Include="PixiReact.fs" />
     <Compile Include="App.fs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="..\..\Dnd5E\Dnd5E.fsproj" />
     <ProjectReference Include="..\..\Froggy\Froggy.fsproj" />

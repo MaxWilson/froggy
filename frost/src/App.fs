@@ -62,10 +62,19 @@ let private update msg model =
 
 module Pixi =
   open Fable.Core.JsInterop
+  open Fable.Core
+  open Fable.Import.React
 
+  [<Import("RotatingBunny", "./RotatingBunny.tsx")>]
   type IRotatingBunny =
     abstract name : unit -> string
+  [<Import("BunnyStage", "./RotatingBunny.tsx")>]
+  let BunnyStage() : ReactElement = jsNative
   let RotatingBunny : JsConstructor<IRotatingBunny> = importDefault "./RotatingBunny.tsx"
+
+  type BunnyStage1 =
+    inherit StatelessComponent<int>
+
 
 let private view model dispatch =
     Hero.hero [ Hero.IsFullHeight ]
@@ -77,7 +86,7 @@ let private view model dispatch =
                         [ Image.image [ Image.Is128x128
                                         Image.Props [ Style [ Margin "auto"] ] ]
                             [ img [ Src "assets/fulma_logo.svg" ] ]
-                          str <| (Pixi.RotatingBunny.Create().name())
+                          (Pixi.BunnyStage())
                           Image.image [ Image.Is128x128
                                         Image.Props [ Style [ Margin "auto"] ] ]
                             [ img [ Src "assets/fulma_logo.svg" ] ]
