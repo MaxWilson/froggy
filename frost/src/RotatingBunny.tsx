@@ -1,4 +1,4 @@
-import { Sprite, Stage } from "react-pixi-fiber";
+import { Sprite, Stage, Text } from "react-pixi-fiber";
 import * as React from "react";
 import * as PropTypes from "prop-types";
 
@@ -58,10 +58,11 @@ export class RotatingBunny extends React.Component<any, RotationState, {}> {
 }
 
 
-export function BunnyStage() {
+export function BunnyStage(txt:string="Hello") {
   return (
     <Stage width={800} height={600} options={{ backgroundColor: 0x10bb99 }}>
-      <RotatingBunny x={300} y={200}/>
+      <RotatingBunny x={300} y={200} />
+      <Text x={200} y={300} text={txt} style={new PIXI.TextStyle({ wordWrap: true, wordWrapWidth: 300 })} />
     </Stage>
   );
 }

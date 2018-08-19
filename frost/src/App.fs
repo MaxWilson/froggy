@@ -69,7 +69,7 @@ module Pixi =
   type IRotatingBunny =
     abstract name : unit -> string
   [<Import("BunnyStage", "./RotatingBunny.tsx")>]
-  let BunnyStage() : ReactElement = jsNative
+  let BunnyStage(txt:string) : ReactElement = jsNative
   let RotatingBunny : JsConstructor<IRotatingBunny> = importDefault "./RotatingBunny.tsx"
 
   type BunnyStage1 =
@@ -86,7 +86,7 @@ let private view model dispatch =
                         [ Image.image [ Image.Is128x128
                                         Image.Props [ Style [ Margin "auto"] ] ]
                             [ img [ Src "assets/fulma_logo.svg" ] ]
-                          (Pixi.BunnyStage())
+                          (Pixi.BunnyStage(model.Output))
                           Image.image [ Image.Is128x128
                                         Image.Props [ Style [ Margin "auto"] ] ]
                             [ img [ Src "assets/fulma_logo.svg" ] ]
