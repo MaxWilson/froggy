@@ -35,9 +35,11 @@ module React_pixi_fiber =
     type ChildrenProperties =
         abstract children: React.ReactNode option with get, set
 
+    [<AbstractClass>]
     type ChildlessComponent<'T>(props) =
         inherit React.Component<'T, unit>(props)
 
+    [<AbstractClass>]
     type Component<'T>(props) =
         inherit React.Component<'T, unit>(props)
 
