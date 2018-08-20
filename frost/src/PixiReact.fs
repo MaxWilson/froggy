@@ -35,22 +35,22 @@ module React_pixi_fiber =
     type ChildrenProperties =
         abstract children: React.ReactNode option with get, set
 
-    type ChildlessComponent<'T> =
-        React.Component<'T, unit>
+    type ChildlessComponent<'T>(props) =
+        inherit React.Component<'T, unit>(props)
 
-    type Component<'T> =
-        React.Component<'T, unit>
+    type Component<'T>(props) =
+        inherit React.Component<'T, unit>(props)
 
     /// `BitmapText` component properties.
     type BitmapTextProperties =
-        inherit React.Component<PIXI.Extras.BitmapText>
+        inherit PIXI.Extras.BitmapText
         abstract text: string with get, set
 
     /// A component wrapper for `PIXI.extras.BitmapText`.
     ///
     /// see: http://pixijs.download/dev/docs/PIXI.extras.BitmapText.html
     type BitmapText =
-        inherit React.Component<BitmapTextProperties>
+        React.Component<BitmapTextProperties, unit>
 
     /// A component wrapper for `PIXI.extras.BitmapText`.
     ///
@@ -60,13 +60,13 @@ module React_pixi_fiber =
 
     /// `Container` component properties.
     type ContainerProperties =
-        inherit ChildlessComponent<PIXI.Container>
+        obj
 
     /// A component wrapper for `PIXI.extras.BitmapText`.
     ///
     /// see: http://pixijs.download/dev/docs/PIXI.Container.html
     type Container =
-        inherit React.Component<ContainerProperties>
+        Component<ContainerProperties>
 
     /// A component wrapper for `PIXI.extras.BitmapText`.
     ///
@@ -76,13 +76,13 @@ module React_pixi_fiber =
 
     /// `Graphics` component properties.
     type GraphicsProperties =
-        inherit Component<PIXI.Graphics>
+        Component<PIXI.Graphics>
 
     /// A component wrapper for `PIXI.Graphics`.
     ///
     /// see: http://pixijs.download/dev/docs/PIXI.Graphics.html
     type Graphics =
-        inherit React.Component<GraphicsProperties>
+        Component<GraphicsProperties>
 
     /// A component wrapper for `PIXI.Graphics`.
     ///
@@ -92,13 +92,13 @@ module React_pixi_fiber =
 
     /// `ParticleContainer` component properties.
     type ParticleContainerProperties =
-        inherit ChildlessComponent<PIXI.Particles.ParticleContainer>
+        PIXI.Particles.ParticleContainer
 
     /// A component wrapper for `PIXI.particles.ParticleContainer`.
     ///
     /// see: http://pixijs.download/dev/docs/PIXI.particles.ParticleContainer.html
     type ParticleContainer =
-        inherit React.Component<TilingSpriteProperties>
+        Component<TilingSpriteProperties>
 
     /// A component wrapper for `PIXI.particles.ParticleContainer`.
     ///
@@ -108,13 +108,13 @@ module React_pixi_fiber =
 
     /// `Sprite` component properties.
     type SpriteProperties =
-        inherit ChildlessComponent<PIXI.Sprite>
+        PIXI.Sprite
 
     /// A component wrapper for `PIXI.Sprite`.
     ///
     /// see: http://pixijs.download/dev/docs/PIXI.Sprite.html
     type Sprite =
-        inherit React.Component<SpriteProperties>
+        Component<SpriteProperties>
 
     /// A component wrapper for `PIXI.Sprite`.
     ///
@@ -124,13 +124,13 @@ module React_pixi_fiber =
 
     /// `Text` component properties
     type TextProperties =
-        inherit ChildlessComponent<PIXI.Text>
+        PIXI.Text
 
     /// A component wrapper for `PIXI.Text`.
     ///
     /// see: http://pixijs.download/dev/docs/PIXI.Text.html
     type Text =
-        inherit React.Component<TextProperties>
+        Component<TextProperties>
 
     /// A component wrapper for `PIXI.Text`.
     ///
@@ -140,14 +140,14 @@ module React_pixi_fiber =
 
     /// `TilingSprite` component properties.
     type TilingSpriteProperties =
-        inherit ChildlessComponent<PIXI.Extras.TilingSprite>
+        inherit PIXI.Extras.TilingSprite
         abstract texture: PIXI.Texture with get, set
 
     /// A component wrapper for `PIXI.extras.TilingSprite`.
     ///
     /// see: http://pixijs.download/dev/docs/PIXI.extras.TilingSprite.html
     type TilingSprite =
-        inherit React.Component<TilingSpriteProperties>
+        Component<TilingSpriteProperties>
 
     /// A component wrapper for `PIXI.extras.TilingSprite`.
     ///
@@ -157,14 +157,14 @@ module React_pixi_fiber =
 
     /// `Stage` component properties."
     type StageProperties =
-        inherit Component<PIXI.Container>
+        inherit PIXI.Container
         abstract options: PIXI.ApplicationOptions option with get, set
 
     /// A component wrapper for `PIXI.Application`.
     ///
     /// see: http://pixijs.download/dev/docs/PIXI.Application.html
     type Stage =
-        inherit React.Component<StageProperties>
+        Component<StageProperties>
 
     /// A component wrapper for `PIXI.Application`.
     ///

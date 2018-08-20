@@ -75,7 +75,7 @@ module Pixi =
   type BunnyStage1 =
     inherit StatelessComponent<int>
 
-
+let prf = PixiReact.``react-pixi-fiber``
 let private view model dispatch =
     Hero.hero [ Hero.IsFullHeight ]
         [ Hero.body [ ]
@@ -87,6 +87,7 @@ let private view model dispatch =
                                         Image.Props [ Style [ Margin "auto"] ] ]
                             [ img [ Src "assets/fulma_logo.svg" ] ]
                           (Pixi.BunnyStage(model.Output))
+                          prf.Stage.Create()
                           Image.image [ Image.Is128x128
                                         Image.Props [ Style [ Margin "auto"] ] ]
                             [ img [ Src "assets/fulma_logo.svg" ] ]
