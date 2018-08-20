@@ -7,22 +7,22 @@ open Fable.Import.Browser
 
 
 module PIXI =
-    let [<Import("accessibility","module/PIXI")>] accessibility: Accessibility.IExports = jsNative
-    let [<Import("CONST","module/PIXI")>] Const: CONST.IExports = jsNative
-    let [<Import("CanvasTinter","module/PIXI")>] canvasTinter: CanvasTinter.IExports = jsNative
-    let [<Import("extract","module/PIXI")>] extract: Extract.IExports = jsNative
-    let [<Import("extras","module/PIXI")>] extras: Extras.IExports = jsNative
-    let [<Import("filters","module/PIXI")>] filters: Filters.IExports = jsNative
-    let [<Import("glCore","module/PIXI")>] glCore: GlCore.IExports = jsNative
-    let [<Import("GroupD8","module/PIXI")>] groupD8: GroupD8.IExports = jsNative
-    let [<Import("interaction","module/PIXI")>] interaction: Interaction.IExports = jsNative
-    let [<Import("loaders","module/PIXI")>] loaders: Loaders.IExports = jsNative
-    let [<Import("mesh","module/PIXI")>] mesh: Mesh.IExports = jsNative
-    let [<Import("particles","module/PIXI")>] particles: Particles.IExports = jsNative
-    let [<Import("prepare","module/PIXI")>] prepare: Prepare.IExports = jsNative
-    let [<Import("settings","module/PIXI")>] settings: Settings.IExports = jsNative
-    let [<Import("ticker","module/PIXI")>] ticker: Ticker.IExports = jsNative
-    let [<Import("utils","module/PIXI")>] utils: Utils.IExports = jsNative
+    let [<Import("accessibility","pixi.js")>] accessibility: Accessibility.IExports = jsNative
+    let [<Import("CONST","pixi.js")>] Const: CONST.IExports = jsNative
+    let [<Import("CanvasTinter","pixi.js")>] canvasTinter: CanvasTinter.IExports = jsNative
+    let [<Import("extract","pixi.js")>] extract: Extract.IExports = jsNative
+    let [<Import("extras","pixi.js")>] extras: Extras.IExports = jsNative
+    let [<Import("filters","pixi.js")>] filters: Filters.IExports = jsNative
+    let [<Import("glCore","pixi.js")>] glCore: GlCore.IExports = jsNative
+    let [<Import("GroupD8","pixi.js")>] groupD8: GroupD8.IExports = jsNative
+    let [<Import("interaction","pixi.js")>] interaction: Interaction.IExports = jsNative
+    let [<Import("loaders","pixi.js")>] loaders: Loaders.IExports = jsNative
+    let [<Import("mesh","pixi.js")>] mesh: Mesh.IExports = jsNative
+    let [<Import("particles","pixi.js")>] particles: Particles.IExports = jsNative
+    let [<Import("prepare","pixi.js")>] prepare: Prepare.IExports = jsNative
+    let [<Import("settings","pixi.js")>] settings: Settings.IExports = jsNative
+    let [<Import("ticker","pixi.js")>] ticker: Ticker.IExports = jsNative
+    let [<Import("utils","pixi.js")>] utils: Utils.IExports = jsNative
 
     type [<AllowNullLiteral>] IExports =
         abstract VERSION: obj
@@ -2720,7 +2720,7 @@ module PIXI =
         abstract data: obj option with get, set
 
     module Utils =
-        let [<Import("isMobile","module/PIXI/utils")>] isMobile: IsMobile.IExports = jsNative
+        let [<Import("isMobile","pixi.js/utils")>] isMobile: IsMobile.IExports = jsNative
 
         type [<AllowNullLiteral>] IExports =
             abstract uid: unit -> float

@@ -6,7 +6,7 @@ open Fable.Import.JS
 
 module PIXI = PixiJs.PIXI
 
-let [<Import("*","Pixi.js")>] ``react-pixi-fiber``: React_pixi_fiber.IExports = jsNative
+let [<Import("*","Pixi.js")>] prf: React_pixi_fiber.IExports = jsNative
 
 module React_pixi_fiber =
     open Fable.Import
@@ -174,8 +174,7 @@ module React_pixi_fiber =
     type StageStatic =
         [<Emit "new $0($1...)">] abstract Create: StageProperties -> Stage
     module Create =
-        [<Emit "new $0($1...)">]
-        let Stage x : Stage = jsNative
+        let Stage x : Stage = prf.Stage.Create (unbox x)
 
     /// Custom component properties.
     type Behavior<'T, 'U> =

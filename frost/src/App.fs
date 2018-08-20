@@ -62,22 +62,22 @@ let private update msg model =
 
         { model with Output = RollHelper.execute model.Input }, Cmd.none
 
-module Pixi =
-  open Fable.Core.JsInterop
-  open Fable.Core
-  open Fable.Import.React
+//module Pixi =
+//  open Fable.Core.JsInterop
+//  open Fable.Core
+//  open Fable.Import.React
 
-  [<Import("RotatingBunny", "./RotatingBunny.tsx")>]
-  type IRotatingBunny =
-    abstract name : unit -> string
-  [<Import("BunnyStage", "./RotatingBunny.tsx")>]
-  let BunnyStage(txt:string) : ReactElement = jsNative
-  let RotatingBunny : JsConstructor<IRotatingBunny> = importDefault "./RotatingBunny.tsx"
+//  [<Import("RotatingBunny", "./RotatingBunny.tsx")>]
+//  type IRotatingBunny =
+//    abstract name : unit -> string
+//  [<Import("BunnyStage", "./RotatingBunny.tsx")>]
+//  let BunnyStage(txt:string) : ReactElement = jsNative
+//  let RotatingBunny : JsConstructor<IRotatingBunny> = importDefault "./RotatingBunny.tsx"
 
-  type BunnyStage1 =
-    inherit StatelessComponent<int>
+//  type BunnyStage1 =
+//    inherit StatelessComponent<int>
 
-let prf = PixiReact.``react-pixi-fiber``
+let prf = PixiReact.prf
 module PRF = PixiReact.React_pixi_fiber
 let private view model dispatch =
     Hero.hero [ Hero.IsFullHeight ]
@@ -89,8 +89,9 @@ let private view model dispatch =
                         [ Image.image [ Image.Is128x128
                                         Image.Props [ Style [ Margin "auto"] ] ]
                             [ img [ Src "assets/fulma_logo.svg" ] ]
-                          (Pixi.BunnyStage(model.Output))
-                          PRF.Create.Stage(createObj ["width" ==> 800; "height" ==> 600; "backgroundColor" ==> "0x10bb99"])
+//                          (Pixi.BunnyStage(model.Output))
+                          //PRF.Create.Stage(createObj ["width" ==> 800; "height" ==> 600; "backgroundColor" ==> "0x10bb99"])
+                          PRF.Create.Stage(createObj [])
                           Image.image [ Image.Is128x128
                                         Image.Props [ Style [ Margin "auto"] ] ]
                             [ img [ Src "assets/fulma_logo.svg" ] ]
