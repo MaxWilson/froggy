@@ -172,7 +172,10 @@ module React_pixi_fiber =
     ///
     /// see: http://pixijs.download/dev/docs/PIXI.Application.html
     type StageStatic =
-        [<Emit "new $0($1...)">] abstract Create: unit -> Stage
+        [<Emit "new $0($1...)">] abstract Create: StageProperties -> Stage
+    module Create =
+        [<Emit "new $0($1...)">]
+        let Stage x : Stage = jsNative
 
     /// Custom component properties.
     type Behavior<'T, 'U> =

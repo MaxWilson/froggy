@@ -7,6 +7,8 @@ open Fulma
 open Fulma.FontAwesome
 open Froggy.Data
 open Froggy.Packrat
+open Fable.Core
+open Fable.Core.JsInterop
 
 type Model =
     { Input : string
@@ -88,7 +90,7 @@ let private view model dispatch =
                                         Image.Props [ Style [ Margin "auto"] ] ]
                             [ img [ Src "assets/fulma_logo.svg" ] ]
                           (Pixi.BunnyStage(model.Output))
-                          PRF.Stage(PRF.StageProperties(children = []))
+                          PRF.Create.Stage(createObj ["width" ==> 800; "height" ==> 600; "backgroundColor" ==> "0x10bb99"])
                           Image.image [ Image.Is128x128
                                         Image.Props [ Style [ Margin "auto"] ] ]
                             [ img [ Src "assets/fulma_logo.svg" ] ]
