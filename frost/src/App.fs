@@ -77,8 +77,27 @@ let private update msg model =
 //  type BunnyStage1 =
 //    inherit StatelessComponent<int>
 
-let prf = PixiReact.prf
-module PRF = PixiReact.React_pixi_fiber
+module rpf =
+    open PixiJs
+    open Fable.Import
+
+    /// `Stage` component properties."
+    type StageProperties =
+        inherit PIXI.Container
+        abstract options: PIXI.ApplicationOptions option with get, set
+
+    [<AbstractClass>]
+    type Stage(props) =
+        inherit React.Component<StageProperties, unit>(props)
+        [<Emit "new $0($1...)">] abstract Create: StageProperties -> Stage
+
+    /// A component wrapper for `PIXI.Application`.
+    ///
+    /// see: http://pixijs.download/dev/docs/PIXI.Application.html
+    type StageStatic =
+        [<Emit "new $0($1...)">] abstract Create: StageProperties -> Stage
+let stage : rpf.StageStatic = import "Stage" "react-pixi-fiber"
+
 let private view model dispatch =
     Hero.hero [ Hero.IsFullHeight ]
         [ Hero.body [ ]
@@ -91,7 +110,8 @@ let private view model dispatch =
                             [ img [ Src "assets/fulma_logo.svg" ] ]
 //                          (Pixi.BunnyStage(model.Output))
                           //PRF.Create.Stage(createObj ["width" ==> 800; "height" ==> 600; "backgroundColor" ==> "0x10bb99"])
-                          PRF.Create.Stage(createObj [])
+                          //rpf.Stage.Create(!!createObj [])
+                          stage.Create(unbox obj)
                           Image.image [ Image.Is128x128
                                         Image.Props [ Style [ Margin "auto"] ] ]
                             [ img [ Src "assets/fulma_logo.svg" ] ]
