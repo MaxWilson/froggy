@@ -81,25 +81,38 @@ module rpf =
     open PixiJs
     open Fable.Import
 
+    [<Pojo>]
+    type ApplicationOptions = { backgroundColor: string option }
+
+    [<Pojo>]
     /// `Stage` component properties."
-    type StageProperties = unit
-        //inherit PIXI.Container
-        //abstract options: PIXI.ApplicationOptions option with get, set
+    type StageProperties =
+      {
+        width: float option
+        height: float option
+        options: ApplicationOptions option
+      }
+    let stageProps = {
+        width = None
+        height = None
+        options = None
+      }
 
     [<AbstractClass>]
     type Stage(props) =
         inherit React.Component<StageProperties, unit>(props)
-        [<Emit "new $0($1...)">] abstract Create: StageProperties -> Stage
+        [<Emit "new $0($1...)">] abstract Create: unit -> Stage
 
     /// A component wrapper for `PIXI.Application`.
     ///
     /// see: http://pixijs.download/dev/docs/PIXI.Application.html
     type StageStatic =
-        [<Emit "new $0($1...)">] abstract Create: StageProperties -> Stage
-//let stage : rpf.StageStatic = import "Stage" "react-pixi-fiber"
+        [<Emit "new $0($1...)">] abstract Create: unit -> Stage
+let stage : rpf.StageStatic = import "Stage" "react-pixi-fiber"
+let stage2: rpf.StageProperties -> _ -> _ = ofImport "Stage" "react-pixi-fiber"
 
-let bunnyStage : unit -> Fable.Import.React.ReactElement = import "BunnyStage" "./RotatingBunny.tsx"
-let rb : JsConstructor<Fable.Import.React.ReactElement> = import "RotatingBunny" "./RotatingBunny.tsx"
+//let bunnyStage : unit -> Fable.Import.React.ReactElement = import "BunnyStage" "./RotatingBunny.tsx"
+//let rb : JsConstructor<Fable.Import.React.ReactElement> = import "RotatingBunny" "./RotatingBunny.tsx"
 
 let private view model dispatch =
     Hero.hero [ Hero.IsFullHeight ]
@@ -111,9 +124,7 @@ let private view model dispatch =
                         [ Image.image [ Image.Is128x128
                                         Image.Props [ Style [ Margin "auto"] ] ]
                             [ img [ Src "assets/fulma_logo.svg" ] ]
-                          //stage.Create()
-                          bunnyStage()
-                          rb.Create()
+                          stage2 { rpf.stageProps with width = Some 800.; height = Some 300.; options = Some ({ backgroundColor = Some "0x10bb99" }) } []
                           Image.image [ Image.Is128x128
                                         Image.Props [ Style [ Margin "auto"] ] ]
                             [ img [ Src "assets/fulma_logo.svg" ] ]
