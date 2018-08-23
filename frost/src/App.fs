@@ -34,10 +34,12 @@ module RollHelper =
       sprintf "max(%s) => %d" (String.join ", " (result.sublog |> List.map render)) result.value
     | Combine(Min, (Aggregate(_) | Repeat(_))) ->
       sprintf "min(%s) => %d" (String.join ", " (result.sublog |> List.map render)) result.value
+    | Transform(roll, t) ->
+      sprintf "(%s) -> %d" (render (result.sublog.Head)) result.value
     | Branch((_,mods),_) ->
       let b,m,v = match result.sublog with [b;m;v] -> b,m,v | v -> failwithf "No match for %A" v
       let test = match mods with StaticValue 0 -> render b | _ -> (sprintf "%s+%s" (render b) (render m))
-      sprintf "(%s) -> %d" test result.value
+      sprintf "(%s) -> %s" test (render v)
     | _ ->
       result.value.ToString()
 
