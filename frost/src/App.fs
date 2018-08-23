@@ -14,13 +14,14 @@ open Fable.Import.React
 type Model =
     { Input : string
       Output : string
+      Frogs: (int * int * float) list
     }
 
 type Msg =
     | ChangeInput of string
     | ComputeOutput
 
-let init _ = { Input = ""; Output = "" }, Cmd.none
+let init _ = { Input = ""; Output = ""; Frogs = [] }, Cmd.none
 
 module RollHelper =
   open Roll
@@ -43,25 +44,34 @@ module RollHelper =
   let execute commandString =
     match ParseArgs.Init commandString with
     | Roll.Grammar.Roll(roll, End) ->
-      Roll.eval roll |> render
+      let result = Roll.eval roll
+      Some result.value, result |> render
     | Roll.Grammar.Aggregate(rolls, End) ->
       let results = rolls |> Roll.evaluateAggregate Froggy.Common.rollOneDie
-      [for result in results.value ->
-        result |> render]
-      |> String.join ";"
+      let explain =
+        [
+        for result in results.value ->
+          result |> render]
+        |> String.join ";"
+      results.value |> List.sumBy(fun r -> r.value) |> Some, explain
     | Froggy.Packrat.Str "avg." (Roll.Grammar.Roll(roll, End))
     | Froggy.Packrat.Word(AnyCase("avg" | "average"), (Roll.Grammar.Roll(roll, End))) ->
-      Roll.mean roll |> sprintf "%.4f"
+      None, Roll.mean roll |> sprintf "%.4f"
     | _ ->
-      "Sorry, come again?"
+      None, "Sorry, come again?"
 
 let private update msg model =
     match msg with
     | ChangeInput newValue ->
         { model with Input = newValue }, Cmd.none
     | ComputeOutput ->
+        match RollHelper.execute model.Input with
+        | None, msg ->
+          { model with Output = msg }, Cmd.none
+        | Some(qty), msg ->
+          let frogs = [for _ in 1..qty -> Froggy.Common.random.Next(780), Froggy.Common.random.Next(480), (0.25 + Froggy.Common.random.NextDouble() * 1.75)]
+          { model with Output = msg; Frogs = frogs }, Cmd.none
 
-        { model with Output = RollHelper.execute model.Input }, Cmd.none
 
 //module Pixi =
 //  open Fable.Core.JsInterop
@@ -146,7 +156,8 @@ let private view model dispatch =
                           stage { createEmpty<StageProperties> with width = 800; height = 500; options = { backgroundColor = "0x10bb99" } } [
                             for i in 1..10 do
                               yield text { createEmpty<TextProperties> with text = "Hello world"; position = { x = 40+(i*4); y = 70+(i*15) }; alpha = (1.0 - (0.1 * float i)) } []
-                              yield sprite { createEmpty<SpriteProperties> with texture = frog; position = { x = 200+(i*4); y = 60+(i*15) }; alpha = (1.0 - (0.1 * float i)) } []
+                            for (x,y,size) in model.Frogs do
+                              yield sprite { createEmpty<SpriteProperties> with texture = frog; position = { x = x; y = y }; } []
                             ]
                           Image.image [ Image.Is128x128
                                         Image.Props [ Style [ Margin "auto"] ] ]
