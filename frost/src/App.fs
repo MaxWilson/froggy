@@ -79,7 +79,6 @@ let private update msg model =
 //    inherit StatelessComponent<int>
 
 module rpf =
-    open PixiJs
     open Fable.Import
 
     [<Pojo>]
@@ -89,27 +88,41 @@ module rpf =
     /// `Stage` component properties."
     type StageProperties =
       {
-        width: float option
-        height: float option
-        options: ApplicationOptions option
-      }
-    let stageProps = {
-        width = None
-        height = None
-        options = None
+        width: int
+        height: int
+        options: ApplicationOptions
       }
 
-    [<AbstractClass>]
-    type Stage(props) =
-        inherit React.Component<StageProperties, unit>(props)
-        [<Emit "new $0($1...)">] abstract Create: unit -> Stage
+    type Point = {
+      x: int
+      y: int
+    }
 
-    /// A component wrapper for `PIXI.Application`.
-    ///
-    /// see: http://pixijs.download/dev/docs/PIXI.Application.html
-    type StageStatic =
-        [<Emit "new $0($1...)">] abstract Create: unit -> Stage
+    type TextStyle = {
+      fill: string
+    }
+
+    [<Pojo>]
+    type SpriteProperties = {
+      position: Point
+      height: int
+      width: int
+      alpha: float
+    }
+
+    [<Pojo>]
+    type TextProperties = {
+      position: Point
+      height: int
+      width: int
+      alpha: float
+      text: string
+      style: TextStyle
+    }
+
     let stage (props: StageProperties) children : ReactElement = ofImport "Stage" "react-pixi-fiber" props children
+    let text (props: TextProperties) children = ofImport "Text" "react-pixi-fiber" props children
+    let sprite (props: SpriteProperties) children = ofImport "Sprite" "react-pixi-fiber" props children
 open rpf
 //let bunnyStage : unit -> Fable.Import.React.ReactElement = import "BunnyStage" "./RotatingBunny.tsx"
 //let rb : JsConstructor<Fable.Import.React.ReactElement> = import "RotatingBunny" "./RotatingBunny.tsx"
@@ -124,7 +137,10 @@ let private view model dispatch =
                         [ Image.image [ Image.Is128x128
                                         Image.Props [ Style [ Margin "auto"] ] ]
                             [ img [ Src "assets/fulma_logo.svg" ] ]
-                          stage { stageProps with width = Some 800.; height = Some 500.; options = Some ({ backgroundColor = Some "0x10bb99" }) } []
+                          stage { createEmpty<StageProperties> with width = 800; height = 500; options = { backgroundColor = Some "0x10bb99" } } [
+                            for i in 1..10 do
+                              yield text { createEmpty<TextProperties> with text = "Hello world"; position = { x = 40+(i*4); y = 70+(i*15) }; alpha = (1.0 - (0.1 * float i)) } []
+                            ]
                           Image.image [ Image.Is128x128
                                         Image.Props [ Style [ Margin "auto"] ] ]
                             [ img [ Src "assets/fulma_logo.svg" ] ]
