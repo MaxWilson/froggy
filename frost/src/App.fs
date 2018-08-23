@@ -9,6 +9,7 @@ open Froggy.Data
 open Froggy.Packrat
 open Fable.Core
 open Fable.Core.JsInterop
+open Fable.Import.React
 
 type Model =
     { Input : string
@@ -108,9 +109,8 @@ module rpf =
     /// see: http://pixijs.download/dev/docs/PIXI.Application.html
     type StageStatic =
         [<Emit "new $0($1...)">] abstract Create: unit -> Stage
-let stage : rpf.StageStatic = import "Stage" "react-pixi-fiber"
-let stage2: rpf.StageProperties -> _ -> _ = ofImport "Stage" "react-pixi-fiber"
-
+    let stage (props: StageProperties) children : ReactElement = ofImport "Stage" "react-pixi-fiber" props children
+open rpf
 //let bunnyStage : unit -> Fable.Import.React.ReactElement = import "BunnyStage" "./RotatingBunny.tsx"
 //let rb : JsConstructor<Fable.Import.React.ReactElement> = import "RotatingBunny" "./RotatingBunny.tsx"
 
@@ -124,7 +124,7 @@ let private view model dispatch =
                         [ Image.image [ Image.Is128x128
                                         Image.Props [ Style [ Margin "auto"] ] ]
                             [ img [ Src "assets/fulma_logo.svg" ] ]
-                          stage2 { rpf.stageProps with width = Some 800.; height = Some 300.; options = Some ({ backgroundColor = Some "0x10bb99" }) } []
+                          stage { stageProps with width = Some 800.; height = Some 500.; options = Some ({ backgroundColor = Some "0x10bb99" }) } []
                           Image.image [ Image.Is128x128
                                         Image.Props [ Style [ Margin "auto"] ] ]
                             [ img [ Src "assets/fulma_logo.svg" ] ]
