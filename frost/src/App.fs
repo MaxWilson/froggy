@@ -14,7 +14,7 @@ open Fable.Import.React
 type Model =
     { Input : string
       Output : string
-      Frogs: (int * int * float) list
+      Frogs: (int * int * int * float) list
     }
 
 type Msg =
@@ -71,7 +71,7 @@ let private update msg model =
         | None, msg ->
           { model with Output = msg }, Cmd.none
         | Some(qty), msg ->
-          let frogs = [for i in 1..qty -> ((50 * i) + Froggy.Common.random.Next(40)) % 780, ((20 * i) + Froggy.Common.random.Next(40)) % 480, (0.25 + Froggy.Common.random.NextDouble() * 1.75)]
+          let frogs = [for i in 1..qty -> i, ((50 * i) + Froggy.Common.random.Next(40)) % 780, ((20 * i) + Froggy.Common.random.Next(40)) % 480, (0.25 + Froggy.Common.random.NextDouble() * 1.75)]
           { model with Output = msg; Frogs = frogs }, Cmd.none
 
 
@@ -159,8 +159,9 @@ let private view model dispatch =
                           stage { createEmpty<StageProperties> with width = 800; height = 500; options = { backgroundColor = "0x10bb99" } } [
                             for i in 1..10 do
                               yield text { createEmpty<TextProperties> with text = "Hello world"; position = { x = 40+(i*4); y = 70+(i*15) }; alpha = (1.0 - (0.1 * float i)) } []
-                            for (x,y,size) in model.Frogs do
+                            for (i,x,y,size) in model.Frogs do
                               yield sprite { createEmpty<SpriteProperties> with texture = frog; position = { x = x; y = y }; } []
+                              yield text { createEmpty<TextProperties> with text = sprintf "#%d" i; position = { x = x - 10; y = y - 10; }; alpha = 0.90; style = { fill = "white" } } []
                             ]
                           Image.image [ Image.Is128x128
                                         Image.Props [ Style [ Margin "auto"] ] ]
