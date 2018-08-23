@@ -102,12 +102,16 @@ module rpf =
       fill: string
     }
 
+    type Texture =
+      static member fromImage(imageUrl: string, ?crossOrigin: bool) : Texture = import "Texture.fromImage" "pixi.js"
+
     [<Pojo>]
     type SpriteProperties = {
       position: Point
       height: int
       width: int
       alpha: float
+      texture: Texture
     }
 
     [<Pojo>]
@@ -127,6 +131,8 @@ open rpf
 //let bunnyStage : unit -> Fable.Import.React.ReactElement = import "BunnyStage" "./RotatingBunny.tsx"
 //let rb : JsConstructor<Fable.Import.React.ReactElement> = import "RotatingBunny" "./RotatingBunny.tsx"
 
+let frog = rpf.Texture.fromImage("assets/frog-icon.png")
+
 let private view model dispatch =
     Hero.hero [ Hero.IsFullHeight ]
         [ Hero.body [ ]
@@ -140,6 +146,7 @@ let private view model dispatch =
                           stage { createEmpty<StageProperties> with width = 800; height = 500; options = { backgroundColor = "0x10bb99" } } [
                             for i in 1..10 do
                               yield text { createEmpty<TextProperties> with text = "Hello world"; position = { x = 40+(i*4); y = 70+(i*15) }; alpha = (1.0 - (0.1 * float i)) } []
+                              yield sprite { createEmpty<SpriteProperties> with texture = frog; position = { x = 200+(i*4); y = 60+(i*15) }; alpha = (1.0 - (0.1 * float i)) } []
                             ]
                           Image.image [ Image.Is128x128
                                         Image.Props [ Style [ Margin "auto"] ] ]
