@@ -112,8 +112,9 @@ module rpf =
       fill: string
     }
 
+    [<Import("Texture", "pixi.js")>]
     type Texture =
-      static member fromImage(imageUrl: string, ?crossOrigin: bool) : Texture = import "Texture.fromImage" "pixi.js"
+      static member fromImage(imageUrl: string, ?crossOrigin: bool) : Texture = jsNative
 
     [<Pojo>]
     type SpriteProperties = {
