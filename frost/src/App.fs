@@ -71,7 +71,7 @@ let private update msg model =
         | None, msg ->
           { model with Output = msg }, Cmd.none
         | Some(qty), msg ->
-          let frogs = [for _ in 1..qty -> Froggy.Common.random.Next(780), Froggy.Common.random.Next(480), (0.25 + Froggy.Common.random.NextDouble() * 1.75)]
+          let frogs = [for i in 1..qty -> ((50 * i) + Froggy.Common.random.Next(40)) % 780, ((20 * i) + Froggy.Common.random.Next(40)) % 480, (0.25 + Froggy.Common.random.NextDouble() * 1.75)]
           { model with Output = msg; Frogs = frogs }, Cmd.none
 
 
