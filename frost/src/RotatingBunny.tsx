@@ -1,7 +1,7 @@
 import { Sprite, Stage, Text } from "react-pixi-fiber";
 import * as React from "react";
 import * as PropTypes from "prop-types";
-
+import Select from "react-select";
 import * as PIXI from "pixi.js";
 
 const bunny = "https://i.imgur.com/IaUrttj.png";
