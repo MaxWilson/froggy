@@ -13,6 +13,7 @@ open Fable.Import.React
 
 type Model =
     { Input : string
+      LastCommand: string
       Output : string
       Frogs: (int * int * int * float) list
     }
@@ -21,7 +22,7 @@ type Msg =
     | ChangeInput of string
     | ComputeOutput
 
-let init _ = { Input = ""; Output = ""; Frogs = [] }, Cmd.none
+let init _ = { Input = ""; LastCommand  = ""; Output = ""; Frogs = [] }, Cmd.none
 
 module RollHelper =
   open Roll
@@ -63,16 +64,19 @@ module RollHelper =
       None, "Sorry, come again?"
 
 let private update msg model =
-    match msg with
-    | ChangeInput newValue ->
-        { model with Input = newValue }, Cmd.none
-    | ComputeOutput ->
-        match RollHelper.execute model.Input with
-        | None, msg ->
-          { model with Output = msg }, Cmd.none
-        | Some(qty), msg ->
-          let frogs = [for i in 1..qty -> i, ((50 * i) + Froggy.Common.random.Next(40)) % 780, ((20 * i) + Froggy.Common.random.Next(40)) % 480, (0.25 + Froggy.Common.random.NextDouble() * 1.75)]
-          { model with Output = msg; Frogs = frogs }, Cmd.none
+  match msg with
+  | ChangeInput newValue ->
+    { model with Input = newValue }, Cmd.none
+  | ComputeOutput ->
+    match model.Input.Trim(), model.LastCommand with
+    | "", cmd
+    | cmd, _ ->
+      match RollHelper.execute cmd with
+      | None, msg ->
+        { model with Output = msg }, Cmd.none
+      | Some(qty), msg ->
+        let frogs = [for i in 1..qty -> i, ((50 * i) + Froggy.Common.random.Next(40)) % 780, ((20 * i) + Froggy.Common.random.Next(40)) % 480, (0.25 + Froggy.Common.random.NextDouble() * 1.75)]
+        { model with Input = ""; LastCommand = cmd; Output = msg; Frogs = frogs }, Cmd.none
 
 
 //module Pixi =
@@ -174,7 +178,8 @@ let private view model dispatch =
                                                Input.Value model.Input
                                                Input.Props [ AutoFocus true; OnKeyDown (fun ev -> if (ev.key = "Enter") then dispatch ComputeOutput) ] ] ] ]
                           Content.content [ ]
-                            [ str model.Output ] ] ] ] ] ]
+                            [ Text.span [Modifiers [Modifier.TextWeight TextWeight.Bold]] [str (sprintf "%s = " model.LastCommand)]; str model.Output ]
+                            ] ] ] ] ]
 
 open Elmish.React
 open Elmish.Debug
