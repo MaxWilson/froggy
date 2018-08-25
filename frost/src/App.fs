@@ -11,7 +11,7 @@ open Fable.Core
 open Fable.Core.JsInterop
 open Fable.Import.React
 
-type Icon = Frog | Bear | Wolf
+type Icon = Frog | Bear | Wolf | Arbitrary of string * string
 type Model =
     { Input : string
       LastCommand: string
@@ -30,6 +30,7 @@ let init _ = { Input = ""; LastCommand  = ""; Output = ""; Frogs = []; CurrentIc
 module RollHelper =
   open Roll
   open Froggy.Common
+  open Froggy.Packrat
   let rec render (result: Result) =
     match result.source with
     | Combine(Sum, (Aggregate(_) | Repeat(_))) ->
@@ -60,8 +61,8 @@ module RollHelper =
           result |> render]
         |> String.join ";"
       results.value |> List.sumBy(fun r -> r.value) |> Some, explain
-    | Froggy.Packrat.Str "avg." (Roll.Grammar.Roll(roll, End))
-    | Froggy.Packrat.Word(AnyCase("avg" | "average"), (Roll.Grammar.Roll(roll, End))) ->
+    | Str "avg." (Roll.Grammar.Roll(roll, End))
+    | Word(AnyCase("avg" | "average"), (Roll.Grammar.Roll(roll, End))) ->
       None, Roll.mean roll |> sprintf "%.4f"
     | _ ->
       None, "Sorry, come again?"
@@ -74,12 +75,23 @@ let private update msg model =
     match model.Input.Trim(), model.LastCommand with
     | "", cmd
     | cmd, _ ->
-      match RollHelper.execute cmd with
-      | None, msg ->
-        { model with Output = msg }, Cmd.none
-      | Some(qty), msg ->
-        let frogs = [for i in 1..qty -> i, ((50 * i) + Froggy.Common.random.Next(40)) % 780, ((20 * i) + Froggy.Common.random.Next(40)) % 480, (0.25 + Froggy.Common.random.NextDouble() * 1.75)]
-        { model with Input = ""; LastCommand = cmd; Output = msg; Frogs = frogs }, Cmd.none
+      match ParseArgs.Init cmd with
+      | Str "icon" (Word(tag, Any (url, End))) ->
+        let cmd =
+          match tag.ToLowerInvariant() with
+            | "frog" -> Frog
+            | "bear" -> Bear
+            | "wolf" -> Wolf
+            | _ -> Arbitrary(tag, url.Trim())
+          |> ChangeIcon
+        { model with Input = ""; Output = sprintf "Set icon to %s" tag }, Cmd.ofMsg cmd
+      | _ ->
+        match RollHelper.execute cmd with
+        | None, msg ->
+          { model with Output = msg }, Cmd.none
+        | Some(qty), msg ->
+          let frogs = [for i in 1..qty -> i, ((50 * i) + Froggy.Common.random.Next(40)) % 780, ((20 * i) + Froggy.Common.random.Next(40)) % 480, (0.25 + Froggy.Common.random.NextDouble() * 1.75)]
+          { model with Input = ""; LastCommand = cmd; Output = msg; Frogs = frogs }, Cmd.none
   | ChangeIcon newIcon ->
     { model with CurrentIcon = newIcon }, Cmd.none
 
@@ -138,7 +150,27 @@ open rpf
 let frog = rpf.Texture.fromImage("assets/frog-icon.png")
 let bear = rpf.Texture.fromImage("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHsAAAB7CAMAAABjGQ9NAAAAY1BMVEX///8AAAD8/Pzd3d3y8vLBwcE1NTV+fn7T09Ph4eEjIyMaGhrm5ubMzMw4ODj5+fkREREtLS2rq6tlZWVFRUUoKCjs7Ox4eHhKSkpvb29SUlK0tLRYWFidnZ2QkJAKCgqGhobuInimAAAD2ElEQVRoge2aabeqIBSGVTA1M+cph/z/v/JqNgDJducJW3ct3i+n0xIegT2wIcPQ0tLS0tLS0tL630Tt06/QhWmaDr2/xs5v0Y9s8xxOb1Ee/ZLuiLbqiW2mlmHH04dhR3bY3tjmkMx/fbIf+z7ul5r92Eb3Mza1LwLb2cvagrP5pnO/C12c74dKWzXZGiTo2+AJDUNaeIQQT8E8AOhJWZpWh9unS+99l0xbGM2rssPvob3sE/S0Cs23pr6LPkSPirvi7+CiOXxOvik6XNJy6LvGDka5rjta4qmgyPWgblduJS/IP+aHrGrT2ukDasFoMXp/VbmTQJlIJXpSdC5dmVXkquGjDk6wyJZF0W+rd9/Zpz0GPilqgzfrT3Zij8qSX836pDwR3K7fEW62gtMFxz3pDg8Pu08TyV9UCSZP7XJDMtmo6N3di6YX94mqtLT3DYuk3WXxJfs/L1nYq35d0iLTVZrdbsrkKd5TTofKHaKYDgx8lK3W6RcSGyNaqmSvlTqNwoAzrLANog7er7EN4qtid6tsI1DFxpwprFSIm7W8f+Tl/ZBtxGrYsH8rnfQIxXaVsHHndqcvloqfso1UBfuIYyvZwR9xRzZKvAzJtlQEdSTbUJFLsWwV9SLS1pTkE+y5fKigSEffCYD1ynVTio+wbNDDo1PR1R8nnCsqnhsrIT2aLLYgTZ3lvDPC84Fle9c19k0WCZok6fqh75OkCQiYCLBsWgGd+DJPtcCTadTeYZIDdJJL6zqwtEGzIWOLpWzwJAfNtoFOztKTbNA90OwC6KSSnuELsdjnrAZ//QOwW2lF2fAP1ty74NmAr9bSRsJK2VyYwN83Ak7mSBsJIenEjeDtgFMqIIXLizo+JKUW53SIeuwuwF3kndBIeI5dhPU69CHWTCL+QEJuNCFnJaM7eMwB2rCJnVPuFAzY/LDsbPzfYrbb5SZ2yjsP0Io9J7zZFrN0cvcQxQb0wCiYdB3j2HPkZSy/RbOZWR5zR8hkKLmLcex5mNbriwpJpuyU1/y6ATGC3WPe0/VrwjIcOuHsdVy44jUNwF6X9ajLHHjpqydorZb7GBVyA5JPHddsjmLsj0iOGLSw/RjnysrETpeasY38+TvWP64YdsGfaSdcXj5Kk/fCsLm9to9hh/zu3OUKcnlAZdnZPcWzNcaAYXOx/DJF0NfUQY7CGOjDHpmXznH39rQ+x3keH7I6IbO5Po5/WqgD+wl/2oT7TC5X9JbJsCh/l+86h2ueNvDlOhmm2BKz17Dkvn7ln34YZ1krt/rzQ6H4GHVtmyCaamlpaWlpaWlp/Vr/AGrtNhOIbghJAAAAAElFTkSuQmCC")
 let wolf = rpf.Texture.fromImage("https://png.icons8.com/ios/1600/wolf.png", true)
-let getIcon = function | Frog -> frog | Bear -> bear | Wolf -> wolf
+let getIcon, getIconList =
+  let mutable arbitraries = Map.empty
+  let getIcon tag =
+    match tag with
+      | Frog -> frog | Bear -> bear | Wolf -> wolf
+      | Arbitrary(tag, url) ->
+        match arbitraries |> Map.tryFind tag with
+        | Some(_, texture) -> texture
+        | None ->
+          let texture = rpf.Texture.fromImage(url)
+          arbitraries <- arbitraries |> Map.add tag (url, texture)
+          texture
+  let getIconList() =
+    [
+      yield "Frog", Frog;
+      yield "Bear", Bear;
+      yield "Wolf", Wolf;
+      for KeyValue(tag, (url, texture)) in arbitraries do
+        yield tag, Arbitrary(tag, url)
+      ]
+  getIcon, getIconList
 
 //module Pixi =
 //  open Fable.Core.JsInterop
@@ -208,7 +240,7 @@ let private view model dispatch =
                         Image.image [ Image.Is128x128
                                       Image.Props [ Style [ Margin "auto"] ] ]
                           [ img [ Src "assets/fulma_logo.svg"] ]
-                        rs.selectOfList ["Frog", Frog; "Bear", Bear; "Wolf", Wolf] (fun (arg: rs.SelectRow<Icon>) -> printfn "%A" arg; dispatch (ChangeIcon arg.value))
+                        rs.selectOfList (getIconList()) (fun (arg: rs.SelectRow<Icon>) -> printfn "%A" arg; dispatch (ChangeIcon arg.value))
                         ]
                         ] ] ] ]
 
