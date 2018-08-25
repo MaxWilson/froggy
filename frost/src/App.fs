@@ -121,7 +121,9 @@ module rpf =
   }
 
   [<Import("Texture", "pixi.js")>]
+  [<AbstractClass>]
   type Texture =
+    abstract member valid: bool with get, set
     static member fromImage(imageUrl: string, ?crossOrigin: bool) : Texture = jsNative
 
   [<Pojo>]
@@ -159,7 +161,7 @@ let getIcon, getIconList =
         match arbitraries |> Map.tryFind tag with
         | Some(_, texture) -> texture
         | None ->
-          let texture = rpf.Texture.fromImage(url)
+          let texture = rpf.Texture.fromImage(url, true)
           arbitraries <- arbitraries |> Map.add tag (url, texture)
           texture
   let getIconList() =
@@ -168,7 +170,8 @@ let getIcon, getIconList =
       yield "Bear", Bear;
       yield "Wolf", Wolf;
       for KeyValue(tag, (url, texture)) in arbitraries do
-        yield tag, Arbitrary(tag, url)
+        if(texture.valid) then
+          yield tag, Arbitrary(tag, url)
       ]
   getIcon, getIconList
 
