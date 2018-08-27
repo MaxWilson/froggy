@@ -228,19 +228,15 @@ type FastInput(props) as this =
     match reactProps with
     | Input.Props(lst)::_ -> lst
     | _ -> []
-  let handler = Input.OnChange(fun ev -> printfn "Input changed to '%s'" ev.Value; this.setState { currentValue = ev.Value })
+  let handler = Input.OnChange(fun ev -> this.setState { currentValue = ev.Value })
   let onKeyDown = reactProps |> List.tryPick(fun x -> if x:? DOMAttr then (match x :?> DOMAttr with OnKeyDown(f) -> Some f | _ -> None) else None)
                   |> Option.defaultValue (fun _ -> ())
   let onKeyDown = OnKeyDown (fun ev ->
-                              printfn "OnKeyDown: %s" ev.key
                               if (ev.key = "Enter") then
-                                printfn "ENTER: %s" this.state.currentValue
                                 props.onChange this.state.currentValue
                               onKeyDown ev)
-  let onBlur = OnBlur (fun ev ->
-    let v = ev.currentTarget?value |> unbox<string>;
-    this.setState { currentValue = v };
-    props.onChange v)
+  let onBlur = OnBlur (fun _ ->
+    props.onChange this.state.currentValue)
   do
     this.state <- { currentValue = "" }
   override this.render() =
@@ -250,7 +246,6 @@ type FastInput(props) as this =
 let fastInput onChange props = ofType<FastInput, _, _> { onChange = onChange; options = props } []
 
 let private view model dispatch =
-    printfn "Rendering"
     Hero.hero [ Hero.IsFullHeight ]
         [ Hero.body [ ]
             [ Container.container [ ]
