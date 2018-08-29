@@ -6,6 +6,8 @@
     <None Include="RotatingBunny.tsx" />
     <Compile Include="PixiJs.fs" />
     <Compile Include="PixiReact.fs" />
+    <Compile Include="ReactSelect.fs" />
+    <Compile Include="ReactPixiFable.fs" />
     <Compile Include="App.fs" />
   </ItemGroup>
   <ItemGroup>

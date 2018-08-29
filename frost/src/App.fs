@@ -11,7 +11,19 @@ open Fable.Core
 open Fable.Core.JsInterop
 open Fable.Import.React
 
-type Icon = Frog | Bear | Wolf | Arbitrary of string * string
+type Icon = string
+type IconDefinition = IconDefinition of Icon * url:string
+let Frog, Bear, Wolf = "Frog", "Bear", "Wolf"
+open Fable.Import.ReactPixiFable
+open Fable.Import
+open System
+
+module rs = Fable.Import.ReactSelect
+module rpf = Fable.Import.ReactPixiFable
+let frog = rpf.Texture.fromImage("assets/frog-icon.png")
+let bear = rpf.Texture.fromImage("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHsAAAB7CAMAAABjGQ9NAAAAY1BMVEX///8AAAD8/Pzd3d3y8vLBwcE1NTV+fn7T09Ph4eEjIyMaGhrm5ubMzMw4ODj5+fkREREtLS2rq6tlZWVFRUUoKCjs7Ox4eHhKSkpvb29SUlK0tLRYWFidnZ2QkJAKCgqGhobuInimAAAD2ElEQVRoge2aabeqIBSGVTA1M+cph/z/v/JqNgDJducJW3ct3i+n0xIegT2wIcPQ0tLS0tLS0tL630Tt06/QhWmaDr2/xs5v0Y9s8xxOb1Ee/ZLuiLbqiW2mlmHH04dhR3bY3tjmkMx/fbIf+z7ul5r92Eb3Mza1LwLb2cvagrP5pnO/C12c74dKWzXZGiTo2+AJDUNaeIQQT8E8AOhJWZpWh9unS+99l0xbGM2rssPvob3sE/S0Cs23pr6LPkSPirvi7+CiOXxOvik6XNJy6LvGDka5rjta4qmgyPWgblduJS/IP+aHrGrT2ukDasFoMXp/VbmTQJlIJXpSdC5dmVXkquGjDk6wyJZF0W+rd9/Zpz0GPilqgzfrT3Zij8qSX836pDwR3K7fEW62gtMFxz3pDg8Pu08TyV9UCSZP7XJDMtmo6N3di6YX94mqtLT3DYuk3WXxJfs/L1nYq35d0iLTVZrdbsrkKd5TTofKHaKYDgx8lK3W6RcSGyNaqmSvlTqNwoAzrLANog7er7EN4qtid6tsI1DFxpwprFSIm7W8f+Tl/ZBtxGrYsH8rnfQIxXaVsHHndqcvloqfso1UBfuIYyvZwR9xRzZKvAzJtlQEdSTbUJFLsWwV9SLS1pTkE+y5fKigSEffCYD1ynVTio+wbNDDo1PR1R8nnCsqnhsrIT2aLLYgTZ3lvDPC84Fle9c19k0WCZok6fqh75OkCQiYCLBsWgGd+DJPtcCTadTeYZIDdJJL6zqwtEGzIWOLpWzwJAfNtoFOztKTbNA90OwC6KSSnuELsdjnrAZ//QOwW2lF2fAP1ty74NmAr9bSRsJK2VyYwN83Ak7mSBsJIenEjeDtgFMqIIXLizo+JKUW53SIeuwuwF3kndBIeI5dhPU69CHWTCL+QEJuNCFnJaM7eMwB2rCJnVPuFAzY/LDsbPzfYrbb5SZ2yjsP0Io9J7zZFrN0cvcQxQb0wCiYdB3j2HPkZSy/RbOZWR5zR8hkKLmLcex5mNbriwpJpuyU1/y6ATGC3WPe0/VrwjIcOuHsdVy44jUNwF6X9ajLHHjpqydorZb7GBVyA5JPHddsjmLsj0iOGLSw/RjnysrETpeasY38+TvWP64YdsGfaSdcXj5Kk/fCsLm9to9hh/zu3OUKcnlAZdnZPcWzNcaAYXOx/DJF0NfUQY7CGOjDHpmXznH39rQ+x3keH7I6IbO5Po5/WqgD+wl/2oT7TC5X9JbJsCh/l+86h2ueNvDlOhmm2BKz17Dkvn7ln34YZ1krt/rzQ6H4GHVtmyCaamlpaWlpaWlp/Vr/AGrtNhOIbghJAAAAAElFTkSuQmCC")
+let wolf = rpf.Texture.fromImage("https://png.icons8.com/ios/1600/wolf.png", true)
+let mutable icons = Map.ofSeq [Frog, frog; Bear, bear; Wolf, wolf]
 
 type Coords = { x: int; y : int }
 type Creature = {
@@ -35,11 +47,10 @@ type Model =
 type Msg =
     | ChangeInput of string
     | ComputeOutput
+    | Define of IconDefinition
     | ChangeIcon of Icon
 
 let init _ = { Input = ""; LastCommand  = ""; Output = ""; Frogs = []; CurrentIcon = Frog; Creatures = [] }, Cmd.none
-
-let mutable arbitraries = Map.empty
 
 module RollHelper =
   open Roll
@@ -81,39 +92,49 @@ module RollHelper =
     | _ ->
       None, "Sorry, come again?"
 
+let defineIcon (IconDefinition(tag, url)) =
+  match icons |> Map.tryFind(tag) with
+  | Some(texture) -> ()
+  | None ->
+    let texture = rpf.Texture.fromImage(url, true)
+    icons <- icons |> Map.add tag texture
+let getIcon tag =
+  icons |> Map.tryFind(tag) |> Option.defaultValue frog
+let getIconList() =
+  [
+    for KeyValue(tag, (texture)) in icons do
+      if(texture.valid) then
+        yield rs.Option tag
+    ] |> Array.ofList
+
 let private update msg model =
   match msg with
   | ChangeInput newValue ->
     { model with Input = newValue }, Cmd.none
+  | Define(IconDefinition(tag, url) as def) ->
+      defineIcon(def)
+      model, Cmd.ofMsg (ChangeIcon tag)
   | ComputeOutput ->
     match model.Input.Trim(), model.LastCommand with
     | "", cmd
     | cmd, _ ->
       match ParseArgs.Init cmd with
-      | Str "icon" (Word(tag, Any (url, End))) ->
+      | Str "define" (Word(tag, Any (url, End))) ->
         let cmd =
           match tag.ToLowerInvariant() with
-            | "frog" -> Frog
-            | "bear" -> Bear
-            | "wolf" -> Wolf
-            | _ -> Arbitrary(tag, url.Trim())
-          |> ChangeIcon
+            | tag -> IconDefinition(tag, url.Trim())
+          |> Define
         { model with Input = ""; Output = sprintf "Set icon to %s" tag }, Cmd.ofMsg cmd
-      | Str "add" (Word(AnyCase("frog" | "bear" | "wolf") as tag, Int(x, Str "," (Int(y, End))))) ->
-        let icon =
-          match tag.ToLowerInvariant() with
-          | "frog" -> Frog
-          | "bear" -> Bear
-          | _ -> Wolf
+      | Str "icon" (Word(tag, End)) ->
+        match icons |> Seq.tryFind(fun (KeyValue(x,_)) -> System.String.Equals(x, tag, StringComparison.InvariantCultureIgnoreCase)) with
+        | Some (KeyValue(tag, _)) ->
+          { model with Input = ""; Output = sprintf "Set icon to %s" tag }, Cmd.ofMsg (ChangeIcon tag)
+        | None ->
+          { model with Input = ""; Output = "Invalid icon"; LastCommand = model.Input }, Cmd.none
+      | Str "add" (Word(AnyCase(tag), Int(x, Str "," (Int(y, End))))) when icons.ContainsKey(tag) ->
         let id = model.Creatures.Length + 1
         let name = sprintf "%s #%d" tag id
-        let creature = { name = name; id = id; icon = icon; coords = { x = x; y = y }; hp = 10; status = None }
-        { model with Input = ""; Creatures = model.Creatures @ [ creature ]}, Cmd.none
-      | Str "add" (Word(tag, Int(x, Str "," (Int(y, End))))) when arbitraries.ContainsKey(tag) ->
-        let icon = Arbitrary(tag, "")
-        let id = model.Creatures.Length + 1
-        let name = sprintf "%s #%d" tag id
-        let creature = { name = name; id = id; icon = icon; coords = { x = x; y = y }; hp = 10; status = None }
+        let creature = { name = name; id = id; icon = tag; coords = { x = x; y = y }; hp = 10; status = None }
         { model with Input = ""; Creatures = model.Creatures @ [ creature ]}, Cmd.none
       | _ ->
         match RollHelper.execute cmd with
@@ -124,87 +145,6 @@ let private update msg model =
           { model with Input = ""; LastCommand = cmd; Output = msg; Frogs = frogs }, Cmd.none
   | ChangeIcon newIcon ->
     { model with CurrentIcon = newIcon }, Cmd.none
-
-
-module rpf =
-  open Fable.Import
-
-  [<Pojo>]
-  type ApplicationOptions = { backgroundColor: int }
-
-  [<Pojo>]
-  /// `Stage` component properties."
-  type StageProperties =
-    {
-      width: int
-      height: int
-      options: ApplicationOptions
-    }
-
-  type Point = {
-    x: int
-    y: int
-  }
-
-  type TextStyle = {
-    fill: string
-  }
-
-  [<Import("Texture", "pixi.js")>]
-  [<AbstractClass>]
-  type Texture =
-    abstract member valid: bool with get, set
-    static member fromImage(imageUrl: string, ?crossOrigin: bool) : Texture = jsNative
-
-  [<Pojo>]
-  type SpriteProperties = {
-    position: Point
-    height: int
-    width: int
-    alpha: float
-    texture: Texture
-  }
-
-  [<Pojo>]
-  type TextProperties = {
-    position: Point
-    height: int
-    width: int
-    alpha: float
-    text: string
-    style: TextStyle
-  }
-
-  let stage (props: StageProperties) children : ReactElement = ofImport "Stage" "react-pixi-fiber" props children
-  let text (props: TextProperties) children = ofImport "Text" "react-pixi-fiber" props children
-  let sprite (props: SpriteProperties) children = ofImport "Sprite" "react-pixi-fiber" props children
-open rpf
-open Fable.Import
-
-let frog = rpf.Texture.fromImage("assets/frog-icon.png")
-let bear = rpf.Texture.fromImage("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHsAAAB7CAMAAABjGQ9NAAAAY1BMVEX///8AAAD8/Pzd3d3y8vLBwcE1NTV+fn7T09Ph4eEjIyMaGhrm5ubMzMw4ODj5+fkREREtLS2rq6tlZWVFRUUoKCjs7Ox4eHhKSkpvb29SUlK0tLRYWFidnZ2QkJAKCgqGhobuInimAAAD2ElEQVRoge2aabeqIBSGVTA1M+cph/z/v/JqNgDJducJW3ct3i+n0xIegT2wIcPQ0tLS0tLS0tL630Tt06/QhWmaDr2/xs5v0Y9s8xxOb1Ee/ZLuiLbqiW2mlmHH04dhR3bY3tjmkMx/fbIf+z7ul5r92Eb3Mza1LwLb2cvagrP5pnO/C12c74dKWzXZGiTo2+AJDUNaeIQQT8E8AOhJWZpWh9unS+99l0xbGM2rssPvob3sE/S0Cs23pr6LPkSPirvi7+CiOXxOvik6XNJy6LvGDka5rjta4qmgyPWgblduJS/IP+aHrGrT2ukDasFoMXp/VbmTQJlIJXpSdC5dmVXkquGjDk6wyJZF0W+rd9/Zpz0GPilqgzfrT3Zij8qSX836pDwR3K7fEW62gtMFxz3pDg8Pu08TyV9UCSZP7XJDMtmo6N3di6YX94mqtLT3DYuk3WXxJfs/L1nYq35d0iLTVZrdbsrkKd5TTofKHaKYDgx8lK3W6RcSGyNaqmSvlTqNwoAzrLANog7er7EN4qtid6tsI1DFxpwprFSIm7W8f+Tl/ZBtxGrYsH8rnfQIxXaVsHHndqcvloqfso1UBfuIYyvZwR9xRzZKvAzJtlQEdSTbUJFLsWwV9SLS1pTkE+y5fKigSEffCYD1ynVTio+wbNDDo1PR1R8nnCsqnhsrIT2aLLYgTZ3lvDPC84Fle9c19k0WCZok6fqh75OkCQiYCLBsWgGd+DJPtcCTadTeYZIDdJJL6zqwtEGzIWOLpWzwJAfNtoFOztKTbNA90OwC6KSSnuELsdjnrAZ//QOwW2lF2fAP1ty74NmAr9bSRsJK2VyYwN83Ak7mSBsJIenEjeDtgFMqIIXLizo+JKUW53SIeuwuwF3kndBIeI5dhPU69CHWTCL+QEJuNCFnJaM7eMwB2rCJnVPuFAzY/LDsbPzfYrbb5SZ2yjsP0Io9J7zZFrN0cvcQxQb0wCiYdB3j2HPkZSy/RbOZWR5zR8hkKLmLcex5mNbriwpJpuyU1/y6ATGC3WPe0/VrwjIcOuHsdVy44jUNwF6X9ajLHHjpqydorZb7GBVyA5JPHddsjmLsj0iOGLSw/RjnysrETpeasY38+TvWP64YdsGfaSdcXj5Kk/fCsLm9to9hh/zu3OUKcnlAZdnZPcWzNcaAYXOx/DJF0NfUQY7CGOjDHpmXznH39rQ+x3keH7I6IbO5Po5/WqgD+wl/2oT7TC5X9JbJsCh/l+86h2ueNvDlOhmm2BKz17Dkvn7ln34YZ1krt/rzQ6H4GHVtmyCaamlpaWlpaWlp/Vr/AGrtNhOIbghJAAAAAElFTkSuQmCC")
-let wolf = rpf.Texture.fromImage("https://png.icons8.com/ios/1600/wolf.png", true)
-let getIcon, getIconList =
-  let getIcon tag =
-    match tag with
-      | Frog -> frog | Bear -> bear | Wolf -> wolf
-      | Arbitrary(tag, url) ->
-        match arbitraries |> Map.tryFind tag with
-        | Some(_, texture) -> texture
-        | None ->
-          let texture = rpf.Texture.fromImage(url, true)
-          arbitraries <- arbitraries |> Map.add tag (url, texture)
-          texture
-  let getIconList() =
-    [
-      yield "Frog", Frog;
-      yield "Bear", Bear;
-      yield "Wolf", Wolf;
-      for KeyValue(tag, (url, texture)) in arbitraries do
-        if(texture.valid) then
-          yield tag, Arbitrary(tag, url)
-      ]
-  getIcon, getIconList
 
 //module Pixi =
 //  open Fable.Core.JsInterop
@@ -220,21 +160,6 @@ let getIcon, getIconList =
 
 //  type BunnyStage1 =
 //    inherit StatelessComponent<int>
-module rs =
-  [<Pojo>]
-  type SelectRow<'T> = {
-    value: 'T
-    label: string
-    }
-  [<Pojo>]
-  type ReactSelectProperties<'T> = {
-    options: SelectRow<'T>[]
-    onChange: SelectRow<'T> -> unit
-    }
-  let select (props: ReactSelectProperties<'T>) = ofImport "default" "react-select" props []
-  let selectOfList inputs onChange =
-    let lst = inputs |> List.map (fun (label, value) -> { value = value; label = label })
-    select { options = lst |> Array.ofList; onChange = onChange }
 
 //let bunnyStage : unit -> Fable.Import.React.ReactElement = import "BunnyStage" "./RotatingBunny.tsx"
 //let rb : JsConstructor<Fable.Import.React.ReactElement> = import "RotatingBunny" "./RotatingBunny.tsx"
@@ -279,28 +204,26 @@ type FastInput(props) as this =
 
 let fastInput onChange props = ofType<FastInput, _, _> { onChange = onChange; options = props } []
 
+let screenWidth, screenHeight = 800, 800
+let opts = [|"Frog"; "Toad"|] |> Array.map rs.Option
 let private view model dispatch =
   Hero.hero [ Hero.IsFullHeight ] [
     Hero.body [ ] [
       Container.container [ ] [
         Columns.columns [ ] [
-          Column.column [ Column.Width(Screen.All, Column.IsOneFifth) ] []
+          Column.column [ Column.Width(Screen.All, Column.IsOneFifth) ] [
+            rs.selectOfList (rs.Option model.CurrentIcon) (getIconList()) (fun (rs.Option value) -> dispatch (ChangeIcon value))
+            ]
           Column.column [ Column.CustomClass "has-text-centered"; Column.Width(Screen.All, Column.IsThreeFifths)]
-            [ Image.image [ Image.Is128x128
-                            Image.Props [ Style [ Margin "auto"] ] ]
-                [ img [ Src "assets/fulma_logo.svg" ] ]
-              stage { createEmpty<StageProperties> with width = 800; height = 500; options = { backgroundColor = 0x10bb99 } } [
+            [ stage { createEmpty<StageProperties> with width = screenWidth; height = screenHeight; options = { backgroundColor = 0x10bb99 } } [
                 for i in 1..10 do
                   yield text { createEmpty<TextProperties> with text = "Hello world"; position = { x = 40+(i*4); y = 70+(i*15) }; alpha = (1.0 - (0.1 * float i)) } []
                 for (i,x,y,size) in model.Frogs do
                   yield sprite { createEmpty<SpriteProperties> with height=50;width=50; texture = getIcon model.CurrentIcon; position = { x = x; y = y }; alpha = 1. } []
                   yield text { createEmpty<TextProperties> with text = sprintf "#%d" i; position = { x = x - 10; y = y - 10; }; alpha = 0.90; style = { fill = "white" } } []
                 for creature in model.Creatures do
-                  yield sprite { createEmpty<SpriteProperties> with height=50;width=50; texture = getIcon creature.icon; position = { x = creature.coords.x * 50; y = 450 - (creature.coords.y * 50) }; alpha = 1. } []
+                  yield sprite { createEmpty<SpriteProperties> with height=50;width=50; texture = getIcon creature.icon; position = { x = creature.coords.x * 50; y = screenHeight - ((creature.coords.y + 1) * 50) }; alpha = 1. } []
                 ]
-              Image.image [ Image.Is128x128
-                            Image.Props [ Style [ Margin "auto"] ] ]
-                [ img [ Src "assets/fulma_logo.svg" ] ]
               Field.div [ ]
                 [ Label.label [ ]
                     [ str "Enter a die roll" ]
@@ -312,10 +235,10 @@ let private view model dispatch =
                 [ Text.span [Modifiers [Modifier.TextWeight TextWeight.Bold]] [str <| if model.LastCommand.Length > 0 then (sprintf "%s = " model.LastCommand) else ""]; str model.Output ]
               ]
           Column.column [Column.Width(Screen.All, Column.IsOneFifth)] [
+            rs.selectOfList (rs.Option model.CurrentIcon) (getIconList()) (fun (rs.Option value) -> dispatch (ChangeIcon value))
             Image.image [ Image.Is128x128
                           Image.Props [ Style [ Margin "auto"] ] ]
               [ img [ Src "assets/fulma_logo.svg"] ]
-            rs.selectOfList (getIconList()) (fun (arg: rs.SelectRow<Icon>) -> dispatch (ChangeIcon arg.value))
             ]
             ] ] ] ]
 
