@@ -1,4 +1,5 @@
 ﻿#if INTERACTIVE
+module Froggy.Packrat
 #else
 module Froggy.Packrat
 #endif

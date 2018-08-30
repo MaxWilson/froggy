@@ -1,167 +1,113 @@
-﻿// Trial code here for encounter generation
+﻿// Trial code here for Shining Sword economic model
+#I __SOURCE_DIRECTORY__
+#load @"..\Froggy\Common.fs"
+#nowarn "0040"
+#load @"..\Froggy\Packrat.fs"
+#load @"..\Dnd5E\Data.fs"
 
-let monsters = [
-  "Wolf", 50
-  "Troll", 1800
-  "Hill Giant", 1800
-  "Orc", 100
-  "Hobgoblin", 100
-  "Hobgoblin Devastator", 1100
-  "Hobgoblin Captain", 700
-  "Goblin", 50
-  "Earth Elemental", 1800
-  "Frost Giant", 3900
-  "Winter Wolf", 700
-  "Orc War Chief", 1100
-  "Orog", 450
-  "Young White Dragon", 2300
-  "Mind Flayer", 2900
-  "Mind Flayer Arcanist", 3900
-  "Adult White Dragon", 10000
-  "Intellect Devourer", 450
-  ]
+open Froggy.Data
+open System.Windows.Forms
 
-let monsterParties = [
-  ["Orc", 10; "Goblin", 8; "Orog", 3; "Orc War Chief", 1]
-  ["Frost Giant", 4; "Winter Wolf", 5; "Troll", 2]
-  ["Hobgoblin", 12; "Goblin", 6; "Troll", 1; "Hobgoblin Devastator", 1; "Hobgoblin Captain", 1; "Wolf", 4]
-  ["Adult White Dragon", 1; "Young White Dragon", 6]
-  ["Young White Dragon", 1; "Mind Flayer", 6; "Mind Flayer Arcanist", 1; "Intellect Devourer", 4; "Goblin", 12]
-  ]
+type Hotspot = { intensity: float; discovered: bool; distance: int }
+type Parameters = { shortTermDamage: Roll.Request; longTermDamage: Roll.Request; hotspotGrowthRate: float; reward: Roll.Request; hotspotDistance: Roll.Request; noiseFactor: float }
+type Problem = { name: string; parameters: Parameters; sourceIntensity: int; sourceDiscovered: bool; hotspots: Hotspot list }
+type World = { day: int; treasury: int; upkeep: int; lastIncome: int; shortTermPenalty: int; growthPenalty: int; problems: Problem list }
 
-let pcmetrics = [
-  // level, XP required, daily XP budget, easy, medium, hard, deadly
-  0, 0,       0,      0, 0, 0, 0
-  1, 0,       300,    25, 50, 75, 100
-  2, 300,     600,    50, 100, 150, 200
-  3, 900,     1200,   75, 150, 225, 400
-  4, 2700,    1700,   125, 250, 375, 500
-  5, 6500,    3500,   250, 500, 750, 1100
-  6, 14000,   4000,   300, 600, 900, 1400
-  7, 23000,   5000,   350, 750, 1100, 1700
-  8, 34000,   6000,   450, 900, 1400, 2100
-  9, 48000,   7500,   550, 1150, 1600, 2400
-  10, 64000,  9000,   600, 1200, 1900, 2800
-  11, 85000,  10500,  800, 1600, 2400, 3600
-  12, 100000, 11500,  1000, 2000, 3000, 4500
-  13, 120000, 13500,  1100, 2200, 3400, 5100
-  14, 140000, 15000,  1250, 2500, 3800, 5700
-  15, 165000, 18000,  1400, 2800, 4300, 6400
-  16, 195000, 20000,  1600, 3200, 4800, 7200
-  17, 225000, 25000,  2000, 3900, 5900, 8800
-  18, 265000, 27000,  2100, 4200, 6300, 9500
-  19, 305000, 30000,  2400, 4900, 7300, 10900
-  20, 355000, 40000,  2800, 5700, 8500, 12700
-  ]
+let incomeGrowth income hiddenPenalty = int (float income * 1.3) - hiddenPenalty
 
-let xpMultiplier nPCs nMonsters =
-  let thresh = [0.5; 1.; 1.5; 2.; 2.5; 3.; 4.; 5.]
-  let index =
-    if nMonsters <= 1 then 1
-    elif nMonsters <= 2 then 2
-    elif nMonsters <= 6 then 3
-    elif nMonsters <= 10 then 4
-    elif nMonsters <= 14 then 5
-    else 6
-    + if nPCs <= 2 then -1 elif nPCs >= 6 then +1 else 0
-  thresh.[index]
-
-let r = System.Random()
-
-let xpBudgets adapt revert pcLevels =
-  let e,m,h,d =
-    pcLevels
-    |> List.fold(fun (e,m,h,d) level ->
-        let (_, _, _, easy, medium, hard, deadly) = pcmetrics.[level]
-        let adapt = float >> adapt
-        (e + adapt easy, m + adapt medium, h + adapt hard, d + adapt deadly)
-        )(0.,0.,0.,0.)
-  let revert = revert >> int
-  [0;revert e; revert m; revert h; revert d]
-
-let xpBudget (xpBudgets: int list) difficulty =
-  if difficulty > 4 then xpBudgets.[4] * (difficulty - 3)
-  else xpBudgets.[difficulty]
-
-let calculateCost (pcLevels: _ list) roster = (roster |> List.sumBy(fun monsterName -> monsters |> List.find (fst >> (=) monsterName) |> snd) |> float) * (xpMultiplier pcLevels.Length (List.length roster)) |> int
-
-let generate calculateCost monsterParties xpBudgets difficulty =
-  let xpBudget = xpBudget xpBudgets difficulty
-  let pickFrom (source: (string * int) list) =
-    let total = source |> List.sumBy snd
-    let normalized = source |> List.fold (fun (prevSum, accum) (name, weight) -> (prevSum + weight), (name, prevSum)::accum) (0, []) |> snd
-    let ix = r.Next(total)
-    normalized |> List.find(fun (name, minBound) -> ix >= minBound) |> fst
-  let rec createRoster source roster =
-    let newMonster = pickFrom source
-    let roster' = (newMonster :: roster)
-    let newCost = calculateCost roster'
-    if newCost < xpBudget then createRoster source roster'
-    elif newCost = xpBudget || roster = [] then roster' // always have at least one monster
+let tick world =
+  let updateHotspot parameters hotspot =
+    let h =
+      { hotspot with intensity = hotspot.intensity + parameters.hotspotGrowthRate }
+    if h.discovered || (Roll.eval(Roll.Dice(1,100)).value |> float) > 5. * parameters.noiseFactor then
+      h
     else
-      // we might be over budget. Take extra monster on a probabilistic basis
-      let oldCost = calculateCost roster
-      let costDiff = newCost - oldCost
-      let overage = newCost - xpBudget
-      let fractionOver = (float overage/float costDiff)
-      if r.NextDouble() <= fractionOver then
-        printfn "Decided not to use %s (%f%% probability)" newMonster (100.*fractionOver)
-        roster
-      else
-        printfn "Decided to use %s (%f%% probability)" newMonster (100.*(1.-fractionOver))
-        roster'
-  let roster =
-      createRoster (monsterParties: (string * int) list list).[r.Next(monsterParties.Length)] []
-  roster
+      { h with discovered = true }
+  let updateProblem problem =
+    let p = problem.parameters
+    let hotspots = problem.hotspots |> List.map (updateHotspot p)
+    let hotspots =
+      if Roll.eval(Roll.Dice(1, 10)).value > problem.sourceIntensity then hotspots
+      else { intensity = 1.; discovered = false; distance = (Roll.eval p.hotspotDistance).value }::hotspots
+    if problem.sourceDiscovered || (Roll.eval(Roll.Dice(1,100)).value |> float) > 1. * p.noiseFactor then
+      { problem with hotspots = hotspots }
+    else
+      { problem with hotspots = hotspots; sourceDiscovered = true }
+  let penalties = [
+    for problem in world.problems do
+      for hotspot in problem.hotspots do
+        let i = hotspot.intensity |> int
+        let penalty = Roll.eval (Roll.Combine(Roll.Sum,Roll.Repeat(i, problem.parameters.shortTermDamage)))
+        yield penalty.value
+    ]
+  let longtermPenalty =
+    if world.day % 7 > 0 then 0
+    else
+      [
+      for problem in world.problems do
+        for hotspot in problem.hotspots do
+          let i = hotspot.intensity |> int
+          let penalty = Roll.eval (Roll.Combine(Roll.Sum,Roll.Repeat(i, problem.parameters.longTermDamage)))
+          yield penalty.value
+      ]
+      |> List.sum
+  let world =
+    { world
+      with
+        day = world.day + 1
+        shortTermPenalty = world.shortTermPenalty + (penalties |> List.sum)
+        growthPenalty = world.growthPenalty + longtermPenalty
+        problems = world.problems |> List.map updateProblem }
+  if world.day % 30 > 0 then world
+  else
+    let income = incomeGrowth world.lastIncome world.growthPenalty
+    let actualIncome = income - world.shortTermPenalty
+    let net = actualIncome - world.upkeep
+    { world
+      with
+        shortTermPenalty = 0
+        growthPenalty = 0
+        treasury = world.treasury + net
+        lastIncome = income
+    }
 
-let pack roster =
-  let roster =
-      roster
-      |> List.groupBy id
-      |> List.map (fun (name, lst) -> name, List.length lst)
-  roster
+let world = {
+  day = 0;
+  treasury = 2000
+  upkeep = 800
+  lastIncome = 2000
+  shortTermPenalty = 0
+  growthPenalty = 0
+  problems = [
+    { name = "Orcs"
+      parameters = { shortTermDamage = Roll.d 3 6 0; longTermDamage = Roll.StaticValue 1; hotspotGrowthRate = 1.; reward = Roll.Dice(3,6); hotspotDistance = Roll.Dice(1,6); noiseFactor = 3. };
+      sourceIntensity = 1; sourceDiscovered = false; hotspots = [{ intensity = 1.; discovered = true; distance = 0 };{ intensity = 1.; discovered = false; distance = 1 };{ intensity = 1.; discovered = false; distance = 1 }] }
+    { name = "Mummies"
+      parameters = { shortTermDamage = Roll.d 1 6 0; longTermDamage = Roll.StaticValue 5; hotspotGrowthRate = 1./7.; reward = Roll.Dice(3,6); hotspotDistance = Roll.Dice(1,6); noiseFactor = 1. };
+      sourceIntensity = 1; sourceDiscovered = false; hotspots = [] }
+    ]
+  }
 
-let showCost roster cost (xpBudgets: _ list) =
-  let actualDifficulty =
-    if cost >= xpBudgets.[4] * 2 then sprintf "Deadly x%d" (cost / xpBudgets.[4])
-    else ["Trivial";"Easy";"Medium";"Hard";"Deadly"].[xpBudgets |> List.findIndexBack (fun threshold -> cost >= threshold)]
-  printfn "%A\nDifficulty: %s (%i)\n%A" roster actualDifficulty cost xpBudgets
+let repeat f report n arg =
+  let rec loop i arg =
+    report arg
+    if i < n then
+      loop (i+1) (f arg)
+  loop 0 arg
 
-let generateStandard pcLevels difficulty =
-  let calculateCost = calculateCost pcLevels
-  let xpBudgets = xpBudgets id id pcLevels
-  let roster = generate calculateCost monsterParties xpBudgets difficulty
-  let cost = calculateCost roster
-  let roster = pack roster
-  showCost roster cost xpBudgets
-  roster
+// superman is the ultimate hero, immediately squashes every problem that is discovered
+let superman world =
+  { world with problems = world.problems |> List.filter (fun p -> if p.sourceDiscovered then printfn "Superman destroys %s HQ" p.name; false else true) |> List.map(fun p -> { p with hotspots = p.hotspots |> List.filter(fun h -> if h.discovered then printfn "Superman kills %s" p.name; false else true) } ) }
 
-let generateVariant monsterParties pcLevels difficulty =
-  let scale = 1.4
-  let downscale x = (x/50.) ** (1./scale)
-  let upscale x = x ** scale * 50.
-  let calculateStandardCost = calculateCost pcLevels
-  let calculateCost roster =
-    roster |> List.sumBy(fun monsterName -> monsters |> List.find (fst >> (=) monsterName) |> snd |> float |> downscale) |> upscale |> int
-  let standardXpBudgets = xpBudgets id id pcLevels
-  let xpBudgets = xpBudgets (float >> downscale) (fun x -> float x/3. |> upscale |> (*) 3.) pcLevels
-  let roster = generate calculateCost monsterParties xpBudgets difficulty
-  let cost = calculateCost roster
-  let standardCost = calculateStandardCost roster
-  let standardDifficulty =
-    if standardCost >= standardXpBudgets.[4] * 2 then sprintf "Deadly x%d" (standardCost / standardXpBudgets.[4])
-    else ["Trivial";"Easy";"Medium";"Hard";"Deadly"].[standardXpBudgets |> List.findIndexBack (fun threshold -> standardCost >= threshold)]
-  let actualDifficulty =
-    if cost >= xpBudgets.[4] * 2 then sprintf "Deadly x%d" (cost / xpBudgets.[4])
-    else ["Trivial";"Easy";"Medium";"Hard";"Deadly"].[xpBudgets |> List.findIndexBack (fun threshold -> cost >= threshold)]
-  printfn "Difficulty: %s [%s] (%i [%i])\n%s [%s]" actualDifficulty standardDifficulty cost standardCost (System.String.Join("/", xpBudgets)) (System.String.Join("/", standardXpBudgets))
-  pack roster
+let status world =
+  let hotspots = [
+    for p in world.problems do
+      for h in p.hotspots do
+        if h.discovered then
+          yield sprintf "%s level %d" p.name (h.intensity |> int)
+      if p.sourceDiscovered then
+        yield sprintf "%s HQ level %d" p.name p.sourceIntensity
+    ]
+  sprintf "Day %d: %d gp (%d - %d) %s" world.day world.treasury (incomeGrowth world.lastIncome 0) (world.shortTermPenalty) (System.String.Join(", ", hotspots))
 
-generateVariant monsterParties [5;11;9;13] 4
-
-generateVariant monsterParties [20;20;20;20] 5
-generateStandard [5;11;9;13] 5
-
-generateVariant monsterParties [1;1;1;1] 4
-
-generateVariant [["Goblin",1;"Orc",1;"Hobgoblin",1]] [1;1;1;1] 4
+repeat (tick >> superman) (status >> printfn "%s") 100 world
