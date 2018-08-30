@@ -1,4 +1,4 @@
-module App.View
+module Frost.App.View
 
 open Elmish
 open Fable.Helpers.React
@@ -17,6 +17,7 @@ let Frog, Bear, Wolf = "Frog", "Bear", "Wolf"
 open Fable.Import.ReactPixiFable
 open Fable.Import
 open System
+open Frost.Domain
 
 module rs = Fable.Import.ReactSelect
 module rpf = Fable.Import.ReactPixiFable
@@ -26,12 +27,12 @@ let wolf = rpf.Texture.fromImage("https://png.icons8.com/ios/1600/wolf.png", tru
 let mutable icons = Map.ofSeq [Frog, frog; Bear, bear; Wolf, wolf]
 
 type Coords = { x: int; y : int }
-type Creature = {
+type Stats = {
     id: int
-    icon: Icon
-    name: string
+    creature: Creature
     coords: Coords
     hp: int
+    moveUsed: int
     status: string option
   }
 
@@ -39,18 +40,24 @@ type Model =
     { Input : string
       LastCommand: string
       Output : string
-      Frogs: (int * int * int * float) list
-      Creatures: Creature list
-      CurrentIcon: Icon
+      Stats: Stats list
     }
 
+type Name = string
+type Action =
+  | Move of Coords
+  | Attack of target: Name
+  | Impose of condition: string
+  | Relax of condition: string
+  | Cast of string
 type Msg =
-    | ChangeInput of string
-    | ComputeOutput
-    | Define of IconDefinition
-    | ChangeIcon of Icon
+  | AddCreature of Creature
+  | CommandCreature of Name * Action
+  | SelectCreature of Name
+  | ChangeCommandInput of string
+  | ExecuteCommand
 
-let init _ = { Input = ""; LastCommand  = ""; Output = ""; Frogs = []; CurrentIcon = Frog; Creatures = [] }, Cmd.none
+let init _ = { Input = ""; LastCommand  = ""; Output = ""; Stats = [] }, Cmd.none
 
 module RollHelper =
   open Roll
@@ -109,100 +116,27 @@ let getIconList() =
 
 let private update msg model =
   match msg with
-  | ChangeInput newValue ->
+  | ChangeCommandInput newValue ->
     { model with Input = newValue }, Cmd.none
-  | Define(IconDefinition(tag, url) as def) ->
-      defineIcon(def)
-      model, Cmd.ofMsg (ChangeIcon tag)
-  | ComputeOutput ->
+  | ExecuteCommand ->
     match model.Input.Trim(), model.LastCommand with
     | "", cmd
     | cmd, _ ->
       match ParseArgs.Init cmd with
-      | Str "define" (Word(tag, Any (url, End))) ->
-        let cmd =
-          match tag.ToLowerInvariant() with
-            | tag -> IconDefinition(tag, url.Trim())
-          |> Define
-        { model with Input = ""; Output = sprintf "Set icon to %s" tag }, Cmd.ofMsg cmd
-      | Str "icon" (Word(tag, End)) ->
-        match icons |> Seq.tryFind(fun (KeyValue(x,_)) -> System.String.Equals(x, tag, StringComparison.InvariantCultureIgnoreCase)) with
-        | Some (KeyValue(tag, _)) ->
-          { model with Input = ""; Output = sprintf "Set icon to %s" tag }, Cmd.ofMsg (ChangeIcon tag)
-        | None ->
-          { model with Input = ""; Output = "Invalid icon"; LastCommand = model.Input }, Cmd.none
-      | Str "add" (Word(AnyCase(tag), Int(x, Str "," (Int(y, End))))) when icons.ContainsKey(tag) ->
-        let id = model.Creatures.Length + 1
+      | Str "add" (Word(name, (Word(AnyCase("giant" | "cat" as tag), Int(x, Str "," (Int(y, End))))))) ->
+        let creature = (if tag = "giant" then frostGiant else cat) name
+        let id = model.Stats.Length + 1
         let name = sprintf "%s #%d" tag id
-        let creature = { name = name; id = id; icon = tag; coords = { x = x; y = y }; hp = 10; status = None }
-        { model with Input = ""; Creatures = model.Creatures @ [ creature ]}, Cmd.none
+        let stats = { creature = creature; id = id; coords = { x = x; y = y }; hp = creature.hp; moveUsed = 0; status = None }
+        { model with Input = ""; Stats = model.Stats @ [ stats ]}, Cmd.none
       | _ ->
         match RollHelper.execute cmd with
         | None, msg ->
           { model with Output = msg }, Cmd.none
         | Some(qty), msg ->
-          let frogs = [for i in 1..qty -> i, ((50 * i) + Froggy.Common.random.Next(40)) % 780, ((20 * i) + Froggy.Common.random.Next(40)) % 480, (0.25 + Froggy.Common.random.NextDouble() * 1.75)]
-          { model with Input = ""; LastCommand = cmd; Output = msg; Frogs = frogs }, Cmd.none
-  | ChangeIcon newIcon ->
-    { model with CurrentIcon = newIcon }, Cmd.none
-
-//module Pixi =
-//  open Fable.Core.JsInterop
-//  open Fable.Core
-//  open Fable.Import.React
-
-//  [<Import("RotatingBunny", "./RotatingBunny.tsx")>]
-//  type IRotatingBunny =
-//    abstract name : unit -> string
-//  [<Import("BunnyStage", "./RotatingBunny.tsx")>]
-//  let BunnyStage(txt:string) : ReactElement = jsNative
-//  let RotatingBunny : JsConstructor<IRotatingBunny> = importDefault "./RotatingBunny.tsx"
-
-//  type BunnyStage1 =
-//    inherit StatelessComponent<int>
-
-//let bunnyStage : unit -> Fable.Import.React.ReactElement = import "BunnyStage" "./RotatingBunny.tsx"
-//let rb : JsConstructor<Fable.Import.React.ReactElement> = import "RotatingBunny" "./RotatingBunny.tsx"
-
-
-[<Pojo>]
-type FastInputProps = {
-  onChange: string -> unit
-  options: Input.Option list
-  }
-[<Pojo>]
-type FastInputState = {
-  currentValue: string
-  }
-[<AbstractClass>]
-type FastInput(props) as this =
-  inherit React.Component<FastInputProps, FastInputState>(props)
-  let reactProps, inputOptions =
-    props.options |> List.partition(function Input.Props(lst) -> true | _ -> false)
-  let reactProps =
-    match reactProps with
-    | Input.Props(lst)::_ -> lst
-    | _ -> []
-  let handler = Input.OnChange(fun ev -> this.setState { currentValue = ev.Value })
-  let onKeyDown = reactProps |> List.tryPick(fun x -> if x:? DOMAttr then (match x :?> DOMAttr with OnKeyDown(f) -> Some f | _ -> None) else None)
-                  |> Option.defaultValue (fun _ -> ())
-  let onKeyDown = OnKeyDown (fun ev ->
-                              if (ev.key = "Enter") then
-                                props.onChange this.state.currentValue
-                              onKeyDown ev)
-  let onBlur = OnBlur (fun _ ->
-    props.onChange this.state.currentValue)
-  do
-    let v = inputOptions |> List.tryPick (function Input.Value(v) -> Some v | _ -> None) |> Option.defaultValue ""
-    this.state <- { currentValue = v }
-  override this.componentWillReceiveProps(props) =
-    let v = props.options |> List.tryPick (function Input.Value(v) -> Some v | _ -> None) |> Option.defaultValue ""
-    this.setState { currentValue = v }
-  override this.render() =
-    let props' = Input.Props(reactProps @ [Value this.state.currentValue; onBlur; onKeyDown])
-    Input.text (props'::handler::inputOptions)
-
-let fastInput onChange props = ofType<FastInput, _, _> { onChange = onChange; options = props } []
+          { model with Input = ""; LastCommand = cmd; Output = msg }, Cmd.none
+  | cmd ->
+    { model with Input = ""; Output = sprintf "Not implemented: %A" cmd }, Cmd.none
 
 let screenWidth, screenHeight = 800, 750
 let opts = [|"Frog"; "Toad"|] |> Array.map rs.Option
@@ -228,11 +162,10 @@ let private view model dispatch =
             [ stage { createEmpty<StageProperties> with width = screenWidth; height = screenHeight; options = { backgroundColor = 0x10bb99 } } [
                 for i in 1..10 do
                   yield text { createEmpty<TextProperties> with text = "Hello world"; position = { x = 40+(i*4); y = 70+(i*15) }; alpha = (1.0 - (0.1 * float i)) } []
-                for (i,x,y,size) in model.Frogs do
-                  yield sprite { createEmpty<SpriteProperties> with height=50;width=50; texture = getIcon model.CurrentIcon; position = { x = x; y = y }; alpha = 1. } []
-                  yield text { createEmpty<TextProperties> with text = sprintf "#%d" i; position = { x = x - 10; y = y - 10; }; alpha = 0.90; style = { fill = "white" } } []
-                for creature in model.Creatures do
-                  yield sprite { createEmpty<SpriteProperties> with height=50;width=50; texture = getIcon creature.icon; position = { x = creature.coords.x * 50; y = screenHeight - ((creature.coords.y + 1) * 50) }; alpha = 1. } []
+                for stats in model.Stats do
+                  let { Coords.x = x; y = y } = stats.coords
+                  yield sprite { createEmpty<SpriteProperties> with height=50;width=50; texture = getIcon stats.creature.icon; position = { x = stats.coords.x * 50; y = screenHeight - ((stats.coords.y + 1) * 50) }; alpha = 1. } []
+                  yield text { createEmpty<TextProperties> with text = stats.creature.name; position = { x = stats.coords.x * 50 + 5; y = screenHeight - ((stats.coords.y + 1) * 50) + 40; }; alpha = 0.99; style = { fill = "Blue" } } []
                 ]
               Level.level[] [
                 Button.button [] [str "Attack"]
@@ -245,9 +178,10 @@ let private view model dispatch =
                 [ Label.label [ ]
                     [ str "Enter a command" ]
                   Control.div [ ]
-                    [ fastInput (fun input -> dispatch (ChangeInput input)) [
+                    [ Input.input [
+                        Input.OnChange (fun ev -> ChangeCommandInput ev.Value |> dispatch)
                         Input.Value model.Input
-                        Input.Props [ AutoFocus true; OnKeyDown(fun ev -> if (ev.key = "Enter") then dispatch ComputeOutput) ] ] ] ]
+                        Input.Props [ AutoFocus true; OnKeyDown(fun ev -> if (ev.key = "Enter") then dispatch ExecuteCommand) ] ] ] ]
               Content.content [ ]
                 [ Text.span [Modifiers [Modifier.TextWeight TextWeight.Bold]] [str <| if model.LastCommand.Length > 0 then (sprintf "%s = " model.LastCommand) else ""]; str model.Output ]
               ]

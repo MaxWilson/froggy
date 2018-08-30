@@ -8,6 +8,7 @@
     <Compile Include="PixiReact.fs" />
     <Compile Include="ReactSelect.fs" />
     <Compile Include="ReactPixiFable.fs" />
+    <Compile Include="Domain.fs" />
     <Compile Include="App.fs" />
   </ItemGroup>
   <ItemGroup>
