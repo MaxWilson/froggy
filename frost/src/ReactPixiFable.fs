@@ -20,6 +20,12 @@ open Fable.Import.React
     y: int
   }
 
+  // really the same underlying class as point, but in contexts where fractions are expected, such as anchor
+  type FractionalPoint = {
+    x: float
+    y: float
+  }
+
   type TextStyle = {
     fill: string
   }
@@ -37,6 +43,7 @@ open Fable.Import.React
     width: int
     alpha: float
     texture: Texture
+    anchor: FractionalPoint
   }
 
   [<Pojo>]
@@ -47,6 +54,7 @@ open Fable.Import.React
     alpha: float
     text: string
     style: TextStyle
+    anchor: FractionalPoint
   }
 
   let stage (props: StageProperties) children : ReactElement = ofImport "Stage" "react-pixi-fiber" props children

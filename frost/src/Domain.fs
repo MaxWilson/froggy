@@ -29,6 +29,7 @@ type Creature = {
   ac: int
   attacks: Attack list list
   speed: int
+  size: int * int
   }
 
 let frostGiant name =
@@ -46,6 +47,7 @@ let frostGiant name =
     hp = 138
     ac = 15
     speed = 40
+    size = 4,3
     attacks = [
         [giantAxe;giantAxe]
         [rock]
@@ -57,7 +59,7 @@ let cat name =
   let claw = { name = "claw"; range = Melee 5; hitVerb = "slashes"; toHit = +6; damage = Roll.d 2 6 5 }
   {
     name = name
-    icon = "https://vignette.wikia.nocookie.net/forgottenrealms/images/4/46/Monster_Manual_5e_-_Giant%2C_Frost_-_p155.jpg/revision/latest?cb=20141112160119"
+    icon = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBtzOPfVEC0ANMuXJVgPBA9SSAq1jKcncqyDNdEBi-QOxHd7Vl"
     str = 23
     dex = 9
     con = 21
@@ -67,9 +69,9 @@ let cat name =
     hp = 138
     ac = 15
     speed = 40
+    size = 2,3
     attacks = [
         [claw]
         [bite]
       ]
     }
-

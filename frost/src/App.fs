@@ -117,7 +117,12 @@ let defineIcon (IconDefinition(tag, url)) =
     let texture = rpf.Texture.fromImage(url, true)
     icons <- icons |> Map.add tag texture
 let getIcon tag =
-  icons |> Map.tryFind(tag) |> Option.defaultValue frog
+  match icons |> Map.tryFind(tag) with
+  | Some(icon) -> icon
+  | None ->
+    let texture = rpf.Texture.fromImage(tag)
+    icons <- icons |> Map.add tag texture
+    texture
 let getIconList() =
   [
     for KeyValue(tag, (texture)) in icons do
@@ -164,6 +169,7 @@ let labelledValue label text =
     Text.span bold [str (label + ": ")]
     Text.span [] [str text]
   ]
+let scaleInPixels = 50
 let private view model dispatch =
   Hero.hero [ Hero.IsFullHeight ] [
     Hero.body [ ] [
@@ -195,8 +201,9 @@ let private view model dispatch =
                   yield text { createEmpty<TextProperties> with text = "Hello world"; position = { x = 40+(i*4); y = 70+(i*15) }; alpha = (1.0 - (0.1 * float i)) } []
                 for stats in model.Stats do
                   let { Coords.x = x; y = y } = stats.coords
-                  yield sprite { createEmpty<SpriteProperties> with height=50;width=50; texture = getIcon stats.creature.icon; position = { x = stats.coords.x * 50; y = screenHeight - ((stats.coords.y + 1) * 50) }; alpha = 1. } []
-                  yield text { createEmpty<TextProperties> with text = stats.creature.name; position = { x = stats.coords.x * 50 + 5; y = screenHeight - ((stats.coords.y + 1) * 50) + 40; }; alpha = 0.99; style = { fill = "Blue" } } []
+                  let sizeX, sizeY = stats.creature.size
+                  yield sprite { createEmpty<SpriteProperties> with anchor={FractionalPoint.x = 0.5; y = 0.5};height=scaleInPixels*sizeX;width=scaleInPixels*sizeY; texture = getIcon stats.creature.icon; position = { x = stats.coords.x * 50; y = screenHeight - ((stats.coords.y + 1) * 50) }; alpha = 1. } []
+                  yield text { createEmpty<TextProperties> with anchor={FractionalPoint.x = 0.5; y = 0.5}; text = stats.creature.name; position = { x = stats.coords.x * 50 + 5; y = screenHeight - ((stats.coords.y) * 50); }; alpha = 0.99; style = { fill = "Blue" } } []
                 ]
               Level.level[] [
                 Button.button [] [str "Attack"]
