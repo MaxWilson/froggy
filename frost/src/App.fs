@@ -204,15 +204,25 @@ type FastInput(props) as this =
 
 let fastInput onChange props = ofType<FastInput, _, _> { onChange = onChange; options = props } []
 
-let screenWidth, screenHeight = 800, 800
+let screenWidth, screenHeight = 800, 750
 let opts = [|"Frog"; "Toad"|] |> Array.map rs.Option
+let labelledValue label text =
+  let bold = [Modifiers [Modifier.TextWeight TextWeight.Bold]]
+  Control.div [] [
+    Text.span bold [str (label + ": ")]
+    Text.span [] [str text]
+  ]
 let private view model dispatch =
   Hero.hero [ Hero.IsFullHeight ] [
     Hero.body [ ] [
       Container.container [ ] [
         Columns.columns [ ] [
           Column.column [ Column.Width(Screen.All, Column.IsOneFifth) ] [
-            rs.selectOfList (rs.Option model.CurrentIcon) (getIconList()) (fun (rs.Option value) -> dispatch (ChangeIcon value))
+            Control.div [] [
+              Heading.h5 [] [str "Details"]
+              labelledValue "Name" "Big strong monster"
+              labelledValue "HP" "300"
+              ]
             ]
           Column.column [ Column.CustomClass "has-text-centered"; Column.Width(Screen.All, Column.IsThreeFifths)]
             [ stage { createEmpty<StageProperties> with width = screenWidth; height = screenHeight; options = { backgroundColor = 0x10bb99 } } [
@@ -224,9 +234,16 @@ let private view model dispatch =
                 for creature in model.Creatures do
                   yield sprite { createEmpty<SpriteProperties> with height=50;width=50; texture = getIcon creature.icon; position = { x = creature.coords.x * 50; y = screenHeight - ((creature.coords.y + 1) * 50) }; alpha = 1. } []
                 ]
+              Level.level[] [
+                Button.button [] [str "Attack"]
+                Button.button [] [str "Move"]
+                Button.button [] [str "Dodge"]
+                Button.button [] [str "Cast"]
+                Button.button [] [str "Wait"]
+              ]
               Field.div [ ]
                 [ Label.label [ ]
-                    [ str "Enter a die roll" ]
+                    [ str "Enter a command" ]
                   Control.div [ ]
                     [ fastInput (fun input -> dispatch (ChangeInput input)) [
                         Input.Value model.Input
@@ -234,13 +251,22 @@ let private view model dispatch =
               Content.content [ ]
                 [ Text.span [Modifiers [Modifier.TextWeight TextWeight.Bold]] [str <| if model.LastCommand.Length > 0 then (sprintf "%s = " model.LastCommand) else ""]; str model.Output ]
               ]
-          Column.column [Column.Width(Screen.All, Column.IsOneFifth)] [
-            rs.selectOfList (rs.Option model.CurrentIcon) (getIconList()) (fun (rs.Option value) -> dispatch (ChangeIcon value))
-            Image.image [ Image.Is128x128
-                          Image.Props [ Style [ Margin "auto"] ] ]
-              [ img [ Src "assets/fulma_logo.svg"] ]
+          Column.column [Column.Width(Screen.All, Column.IsOneFifth); Column.Props[Style[Height "90vh"]]] [
+            Level.level [] [
+              Button.button [] [str "<<"]
+              Button.button [] [str "Pause"]
+              Button.button [] [str "Play"]
+              Button.button [] [str ">>"]
             ]
-            ] ] ] ]
+            Heading.h6 [] [str "Round 2"]
+
+            Heading.h5 [] [str "Log"]
+            Control.div [Control.Props [Style [Height "70vh";OverflowY "auto"]]] [
+              for x in 1..20 ->
+                Control.div [] [str "So that happened..."]
+              ]
+            ]
+          ] ] ] ]
 
 open Elmish.React
 open Elmish.Debug
