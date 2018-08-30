@@ -38,7 +38,9 @@ type Stats = {
 
 type Model =
     { Input : string
+      SelectedCreature: Stats option
       LastCommand: string
+      OutputLabel: string
       Output : string
       Stats: Stats list
     }
@@ -57,7 +59,16 @@ type Msg =
   | ChangeCommandInput of string
   | ExecuteCommand
 
-let init _ = { Input = ""; LastCommand  = ""; Output = ""; Stats = [] }, Cmd.none
+let init _ =
+  {
+    Input = "";
+    LastCommand  = "";
+    OutputLabel = "";
+    Output = "";
+    SelectedCreature = None;
+    Stats = []
+  },
+  Cmd.none
 
 module RollHelper =
   open Roll
@@ -129,12 +140,19 @@ let private update msg model =
         let name = sprintf "%s #%d" tag id
         let stats = { creature = creature; id = id; coords = { x = x; y = y }; hp = creature.hp; moveUsed = 0; status = None }
         { model with Input = ""; Stats = model.Stats @ [ stats ]}, Cmd.none
+      | Str "select" (Word(name, End)) ->
+        match model.Stats |> List.tryFind (fun st -> st.creature.name.StartsWith(name, StringComparison.InvariantCultureIgnoreCase)) with
+        | None ->
+          { model with Input = ""; Output = sprintf "No such creature '%s'" name; SelectedCreature = None }, Cmd.none
+        | Some creature ->
+          { model with Input = ""; Output = sprintf "Selected '%s'" creature.creature.name; SelectedCreature = Some creature }, Cmd.none
+
       | _ ->
         match RollHelper.execute cmd with
         | None, msg ->
-          { model with Output = msg }, Cmd.none
+          { model with OutputLabel = model.LastCommand; Output = msg }, Cmd.none
         | Some(qty), msg ->
-          { model with Input = ""; LastCommand = cmd; Output = msg }, Cmd.none
+          { model with Input = ""; OutputLabel = (cmd + " = "); LastCommand = cmd; Output = msg }, Cmd.none
   | cmd ->
     { model with Input = ""; Output = sprintf "Not implemented: %A" cmd }, Cmd.none
 
@@ -153,9 +171,22 @@ let private view model dispatch =
         Columns.columns [ ] [
           Column.column [ Column.Width(Screen.All, Column.IsOneFifth) ] [
             Control.div [] [
-              Heading.h5 [] [str "Details"]
-              labelledValue "Name" "Big strong monster"
-              labelledValue "HP" "300"
+              match model.SelectedCreature with
+              | Some(stats) ->
+                let cr = stats.creature
+                yield Heading.h5 [] [str cr.name]
+                yield hr[]
+                yield labelledValue "Str" (cr.str.ToString())
+                yield labelledValue "Dex" (cr.dex.ToString())
+                yield labelledValue "Con" (cr.con.ToString())
+                yield labelledValue "Int" (cr.int.ToString())
+                yield labelledValue "Wis" (cr.wis.ToString())
+                yield labelledValue "Cha" (cr.cha.ToString())
+                yield hr[]
+                yield labelledValue "AC" (cr.ac.ToString())
+                yield labelledValue "HP" (sprintf "%d out of %d" stats.hp cr.hp)
+                yield labelledValue "Move used" (sprintf "%d out of %d" stats.moveUsed cr.speed)
+              | None -> ()
               ]
             ]
           Column.column [ Column.CustomClass "has-text-centered"; Column.Width(Screen.All, Column.IsThreeFifths)]
@@ -183,7 +214,7 @@ let private view model dispatch =
                         Input.Value model.Input
                         Input.Props [ AutoFocus true; OnKeyDown(fun ev -> if (ev.key = "Enter") then dispatch ExecuteCommand) ] ] ] ]
               Content.content [ ]
-                [ Text.span [Modifiers [Modifier.TextWeight TextWeight.Bold]] [str <| if model.LastCommand.Length > 0 then (sprintf "%s = " model.LastCommand) else ""]; str model.Output ]
+                [ Text.span [Modifiers [Modifier.TextWeight TextWeight.Bold]] [str <| if model.OutputLabel.Length > 0 then model.OutputLabel else ""]; str model.Output ]
               ]
           Column.column [Column.Width(Screen.All, Column.IsOneFifth); Column.Props[Style[Height "90vh"]]] [
             Level.level [] [
