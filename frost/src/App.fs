@@ -4,12 +4,10 @@ open Elmish
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 open Fulma
-open Fulma.FontAwesome
 open Froggy.Data
 open Froggy.Packrat
-open Fable.Core
 open Fable.Core.JsInterop
-open Fable.Import.React
+open Froggy.Common
 
 type Icon = string
 type IconDefinition = IconDefinition of Icon * url:string
@@ -134,6 +132,9 @@ let private update msg model =
   match msg with
   | ChangeCommandInput newValue ->
     { model with Input = newValue }, Cmd.none
+  | SelectCreature name ->
+    let creature = model.Stats |> List.tryFind (fun st -> st.creature.name.StartsWith(name, StringComparison.InvariantCultureIgnoreCase))
+    { model with SelectedCreature = creature }, Cmd.none
   | ExecuteCommand ->
     match model.Input.Trim(), model.LastCommand with
     | "", cmd
@@ -148,10 +149,9 @@ let private update msg model =
       | Str "select" (Word(name, End)) ->
         match model.Stats |> List.tryFind (fun st -> st.creature.name.StartsWith(name, StringComparison.InvariantCultureIgnoreCase)) with
         | None ->
-          { model with Input = ""; Output = sprintf "No such creature '%s'" name; SelectedCreature = None }, Cmd.none
+          { model with Input = ""; Output = sprintf "No such creature '%s'" name }, Cmd.ofMsg (SelectCreature name)
         | Some creature ->
-          { model with Input = ""; Output = sprintf "Selected '%s'" creature.creature.name; SelectedCreature = Some creature }, Cmd.none
-
+          { model with Input = ""; Output = sprintf "Selected '%s'" creature.creature.name }, Cmd.ofMsg (SelectCreature name)
       | _ ->
         match RollHelper.execute cmd with
         | None, msg ->
@@ -202,7 +202,7 @@ let private view model dispatch =
                 for stats in model.Stats do
                   let { Coords.x = x; y = y } = stats.coords
                   let sizeX, sizeY = stats.creature.size
-                  yield sprite { createEmpty<SpriteProperties> with anchor={FractionalPoint.x = 0.5; y = 0.5};height=scaleInPixels*sizeX;width=scaleInPixels*sizeY; texture = getIcon stats.creature.icon; position = { x = stats.coords.x * 50; y = screenHeight - ((stats.coords.y + 1) * 50) }; alpha = 1. } []
+                  yield sprite { createEmpty<SpriteProperties> with interactive=true;pointerdown=(thunk1 dispatch (SelectCreature stats.creature.name));anchor={FractionalPoint.x = 0.5; y = 0.5};height=scaleInPixels*sizeX;width=scaleInPixels*sizeY; texture = getIcon stats.creature.icon; position = { x = stats.coords.x * 50; y = screenHeight - ((stats.coords.y + 1) * 50) }; alpha = 1. } []
                   yield text { createEmpty<TextProperties> with anchor={FractionalPoint.x = 0.5; y = 0.5}; text = stats.creature.name; position = { x = stats.coords.x * 50 + 5; y = screenHeight - ((stats.coords.y) * 50); }; alpha = 0.99; style = { fill = "Blue" } } []
                 ]
               Level.level[] [

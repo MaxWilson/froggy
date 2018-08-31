@@ -44,6 +44,8 @@ open Fable.Import.React
     alpha: float
     texture: Texture
     anchor: FractionalPoint
+    interactive: bool
+    pointerdown: unit -> unit
   }
 
   [<Pojo>]
