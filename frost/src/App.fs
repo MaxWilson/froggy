@@ -138,6 +138,21 @@ let getIconList() =
 
 let (|Lookup|_|) model name =
   model.Stats |> List.tryFind (fun st -> st.creature.name.StartsWith(name, StringComparison.InvariantCultureIgnoreCase))
+let (|ExplicitOrSelected|_|) model = function
+  | Word(name, rest) as originalInput ->
+    match model.Stats |> List.tryFind (fun st -> st.creature.name.StartsWith(name, StringComparison.InvariantCultureIgnoreCase)) with
+    | Some(creature) ->
+      Some(creature, rest)
+    | None ->
+      match model.SelectedCreature with
+      | Some(creature) ->
+        Some(creature, originalInput) // NOT rest because we are not consuming name, since it's invalid
+      | _ ->
+        None
+  | rest ->
+    match model.SelectedCreature with
+    | Some(creature) -> Some(creature, rest)
+    | _ -> None
 let isSameCreature stats1 stats2 =
   stats1.creature.name.StartsWith(stats2.creature.name, StringComparison.InvariantCultureIgnoreCase)
 let updateSameCreature stats' stats =
@@ -177,16 +192,16 @@ let private update msg model =
         let name = sprintf "%s #%d" tag id
         let stats = { creature = creature; id = id; coords = { x = x; y = y }; hp = creature.hp; moveUsed = 0; status = None }
         { model with Input = ""; Stats = model.Stats @ [ stats ]; SelectedCreature = Some stats }, Cmd.none
-      | Str "move" (Word(name, Int(x, Str "," (Int(y, End))))) ->
-        { model with Input = ""; OutputLabel = ""; Output = cmd; LastCommand = cmd }, Cmd.ofMsg(CommandCreature(name, Move { x = x; y = y }))
-      | Str "move" (Int(x, Str "," (Int(y, End)))) when model.SelectedCreature.IsSome ->
-        { model with Input = ""; OutputLabel = ""; Output = cmd; LastCommand = cmd }, Cmd.ofMsg(CommandCreature(model.SelectedCreature.Value.creature.name, Move { x = x; y = y }))
-      | Str "move" (OWS(Direction(delta, End))) when model.SelectedCreature.IsSome ->
-        let coords = Coords.add (Coords.ofPair delta) model.SelectedCreature.Value.coords
-        { model with Input = ""; OutputLabel = ""; Output = cmd; LastCommand = cmd }, Cmd.ofMsg(CommandCreature(model.SelectedCreature.Value.creature.name, Move coords))
-      | Str "move" (OWS(Direction(delta, Direction(delta2, End)))) when model.SelectedCreature.IsSome ->
-        let coords = Coords.add (Coords.add (Coords.ofPair delta) (Coords.ofPair delta2)) model.SelectedCreature.Value.coords
-        { model with Input = ""; OutputLabel = ""; Output = cmd; LastCommand = cmd }, Cmd.ofMsg(CommandCreature(model.SelectedCreature.Value.creature.name, Move coords))
+      | Str "attack" (ExplicitOrSelected model (creature, Word(Lookup model target, rest))) ->
+        { model with Input = ""; OutputLabel = ""; Output = cmd; LastCommand = cmd }, Cmd.ofMsg(CommandCreature(creature.creature.name, Attack(target.creature.name)))
+      | Str "move" (ExplicitOrSelected model (creature, Int(x, Str "," (Int(y, End))))) ->
+        { model with Input = ""; OutputLabel = ""; Output = cmd; LastCommand = cmd }, Cmd.ofMsg(CommandCreature(creature.creature.name, Move { x = x; y = y }))
+      | Str "move" (ExplicitOrSelected model (creature, (OWS(Direction(delta, End))))) ->
+        let coords = Coords.add (Coords.ofPair delta) creature.coords
+        { model with Input = ""; OutputLabel = ""; Output = cmd; LastCommand = cmd }, Cmd.ofMsg(CommandCreature(creature.creature.name, Move coords))
+      | Str "move" (ExplicitOrSelected model (creature, (OWS(Direction(delta, Direction(delta2, End)))))) ->
+        let coords = Coords.add (Coords.add (Coords.ofPair delta) (Coords.ofPair delta2)) creature.coords
+        { model with Input = ""; OutputLabel = ""; Output = cmd; LastCommand = cmd }, Cmd.ofMsg(CommandCreature(creature.creature.name, Move coords))
       | Str "select" (Word(name, End)) ->
         match model.Stats |> List.tryFind (fun st -> st.creature.name.StartsWith(name, StringComparison.InvariantCultureIgnoreCase)) with
         | None ->
