@@ -128,13 +128,19 @@ let getIconList() =
         yield rs.Option tag
     ] |> Array.ofList
 
+let (|Lookup|_|) model name =
+  model.Stats |> List.tryFind (fun st -> st.creature.name.StartsWith(name, StringComparison.InvariantCultureIgnoreCase))
+let updateStats (stats: Stats) (model: Model) =
+  { model with Stats = model.Stats |> List.map (fun st -> if st.creature.name.StartsWith(stats.creature.name, StringComparison.InvariantCultureIgnoreCase) then stats else st) }
+
 let private update msg model =
   match msg with
   | ChangeCommandInput newValue ->
     { model with Input = newValue }, Cmd.none
-  | SelectCreature name ->
-    let creature = model.Stats |> List.tryFind (fun st -> st.creature.name.StartsWith(name, StringComparison.InvariantCultureIgnoreCase))
-    { model with SelectedCreature = creature }, Cmd.none
+  | SelectCreature (Lookup model stats) ->
+    { model with SelectedCreature = Some stats }, Cmd.none
+  | CommandCreature(Lookup model creature, Move coords) ->
+    model |> updateStats { creature with coords = coords }, Cmd.none
   | ExecuteCommand ->
     match model.Input.Trim(), model.LastCommand with
     | "", cmd
@@ -146,6 +152,10 @@ let private update msg model =
         let name = sprintf "%s #%d" tag id
         let stats = { creature = creature; id = id; coords = { x = x; y = y }; hp = creature.hp; moveUsed = 0; status = None }
         { model with Input = ""; Stats = model.Stats @ [ stats ]}, Cmd.none
+      | Str "move" (Word(name, Int(x, Str "," (Int(y, End))))) ->
+        { model with Input = ""; OutputLabel = ""; Output = cmd; LastCommand = cmd }, Cmd.ofMsg(CommandCreature(name, Move { x = x; y = y }))
+      | Str "move" (Int(x, Str "," (Int(y, End)))) when model.SelectedCreature.IsSome ->
+        { model with Input = ""; OutputLabel = ""; Output = cmd; LastCommand = cmd }, Cmd.ofMsg(CommandCreature(model.SelectedCreature.Value.creature.name, Move { x = x; y = y }))
       | Str "select" (Word(name, End)) ->
         match model.Stats |> List.tryFind (fun st -> st.creature.name.StartsWith(name, StringComparison.InvariantCultureIgnoreCase)) with
         | None ->
