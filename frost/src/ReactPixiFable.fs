@@ -46,6 +46,7 @@ open Fable.Import.React
     anchor: FractionalPoint
     interactive: bool
     pointerdown: unit -> unit
+    pointertap: unit -> unit
   }
 
   [<Pojo>]
