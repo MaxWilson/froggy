@@ -60,14 +60,14 @@ let cat name =
   {
     name = name
     icon = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBtzOPfVEC0ANMuXJVgPBA9SSAq1jKcncqyDNdEBi-QOxHd7Vl"
-    str = 23
-    dex = 9
-    con = 21
-    int = 9
-    wis = 10
-    cha = 12
-    hp = 138
-    ac = 15
+    str = 18
+    dex = 14
+    con = 15
+    int = 3
+    wis = 12
+    cha = 8
+    hp = 52
+    ac = 12
     speed = 40
     size = 2,3
     attacks = [
