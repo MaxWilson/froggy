@@ -3,13 +3,15 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Imports\PixiReact.fs" />
+    <Compile Include="Imports\ReactSelect.fs" />
+    <Compile Include="Imports\ReactPixiFable.fs" />
     <None Include="RotatingBunny.tsx" />
-    <Compile Include="PixiJs.fs" />
-    <Compile Include="PixiReact.fs" />
-    <Compile Include="ReactSelect.fs" />
-    <Compile Include="ReactPixiFable.fs" />
     <Compile Include="Domain.fs" />
     <Compile Include="App.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Fable.Import.Pixi" Version="0.1.1" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Dnd5E\Dnd5E.fsproj" />

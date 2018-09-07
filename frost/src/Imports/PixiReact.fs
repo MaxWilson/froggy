@@ -4,7 +4,7 @@ open System
 open Fable.Core
 open Fable.Import.JS
 
-module PIXI = PixiJs.PIXI
+module PIXI = Fable.Import.Pixi.PIXI
 
 let [<Import("*","react-pixi-fiber")>] rpf: React_pixi_fiber.IExports = jsNative
 
@@ -44,8 +44,11 @@ module React_pixi_fiber =
         inherit React.Component<'T, unit>(props)
 
     /// `BitmapText` component properties.
+    [<AbstractClass>]
     type BitmapTextProperties =
-        inherit PIXI.Extras.BitmapText
+        inherit PIXI.extras.BitmapText
+        new (text) = { inherit PIXI.extras.BitmapText(text) }
+        new (text, style) = { inherit PIXI.extras.BitmapText(text, style) }
         abstract text: string with get, set
 
     /// A component wrapper for `PIXI.extras.BitmapText`.
@@ -94,7 +97,7 @@ module React_pixi_fiber =
 
     /// `ParticleContainer` component properties.
     type ParticleContainerProperties =
-        PIXI.Particles.ParticleContainer
+        PIXI.particles.ParticleContainer
 
     /// A component wrapper for `PIXI.particles.ParticleContainer`.
     ///
@@ -141,8 +144,12 @@ module React_pixi_fiber =
         [<Emit "new $0($1...)">] abstract Create: unit -> Text
 
     /// `TilingSprite` component properties.
+    [<AbstractClass>]
     type TilingSpriteProperties =
-        inherit PIXI.Extras.TilingSprite
+        inherit PIXI.extras.TilingSprite
+        new (texture) = { inherit PIXI.extras.TilingSprite(texture) }
+        new (texture, width) = { inherit PIXI.extras.TilingSprite(texture, width) }
+        new (texture, width, height) = { inherit PIXI.extras.TilingSprite(texture, width, height) }
         abstract texture: PIXI.Texture with get, set
 
     /// A component wrapper for `PIXI.extras.TilingSprite`.
@@ -158,8 +165,9 @@ module React_pixi_fiber =
         [<Emit "new $0($1...)">] abstract Create: unit -> TilingSprite
 
     /// `Stage` component properties."
-    type StageProperties =
-        inherit PIXI.Container
+    [<AbstractClass>]
+    type StageProperties() =
+        inherit PIXI.Container()
         abstract options: PIXI.ApplicationOptions option with get, set
 
     /// A component wrapper for `PIXI.Application`.
